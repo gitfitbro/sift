@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+from copy import deepcopy
 from .config import get_sift_home
 
 # ── Paths ──
@@ -117,6 +118,46 @@ class SessionTemplate:
         }
 
 
+def merge_templates(templates: list[SessionTemplate], stems: list[str]) -> SessionTemplate:
+    """Merge multiple templates into one, namespacing phase IDs to avoid conflicts.
+
+    Single-template input is returned unmodified (no namespacing).
+    """
+    if len(templates) == 1:
+        return templates[0]
+
+    merged_phases: list[PhaseTemplate] = []
+    seen_outputs: set[tuple[str, str]] = set()
+    merged_outputs: list[OutputSpec] = []
+
+    for tmpl, stem in zip(templates, stems):
+        for phase in tmpl.phases:
+            ns_id = f"{stem}.{phase.id}"
+            ns_depends = f"{stem}.{phase.depends_on}" if phase.depends_on else None
+            merged_phases.append(PhaseTemplate(
+                id=ns_id,
+                name=phase.name,
+                prompt=phase.prompt,
+                capture=deepcopy(phase.capture),
+                extract=deepcopy(phase.extract),
+                depends_on=ns_depends,
+            ))
+
+        for out in tmpl.outputs:
+            key = (out.type, out.template)
+            if key not in seen_outputs:
+                seen_outputs.add(key)
+                merged_outputs.append(out)
+
+    return SessionTemplate(
+        name=" + ".join(t.name for t in templates),
+        description="\n\n".join(t.description for t in templates if t.description),
+        phases=merged_phases,
+        outputs=merged_outputs,
+        metadata={"source_templates": stems, "template_count": len(templates)},
+    )
+
+
 # ── Session Runtime State ──
 @dataclass
 class PhaseState:
@@ -141,6 +182,7 @@ class Session:
     phases: dict[str, PhaseState]
     status: str = "active"  # active, complete, archived
     documents: list[dict] = field(default_factory=list)
+    source_templates: list[str] = field(default_factory=list)
     
     @property
     def dir(self) -> Path:
@@ -159,6 +201,7 @@ class Session:
             created_at=now,
             updated_at=now,
             phases=phases,
+            source_templates=template.metadata.get("source_templates", []),
         )
         
         # Create directory structure
@@ -185,6 +228,7 @@ class Session:
             "updated_at": self.updated_at,
             "status": self.status,
             "documents": self.documents,
+            "source_templates": self.source_templates,
             "phases": {
                 pid: {
                     "id": ps.id,
@@ -236,6 +280,7 @@ class Session:
             phases=phases,
             status=d.get("status", "active"),
             documents=d.get("documents", []),
+            source_templates=d.get("source_templates", []),
         )
     
     def get_template(self) -> SessionTemplate:

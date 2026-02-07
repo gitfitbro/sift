@@ -32,22 +32,44 @@ echo "Installing templates..."
 cp "$SCRIPT_DIR/templates/"*.yaml "$SIFT_HOME/templates/" 2>/dev/null || true
 echo "Templates installed"
 
-# Install package
+# Create virtual environment (recreate if stale or from another project)
+VENV_DIR="$SCRIPT_DIR/.venv"
+RECREATE_VENV=false
+if [ ! -d "$VENV_DIR" ]; then
+    RECREATE_VENV=true
+elif ! grep -q "$VENV_DIR" "$VENV_DIR/bin/activate" 2>/dev/null; then
+    echo "Existing .venv has incorrect paths, recreating..."
+    rm -rf "$VENV_DIR"
+    RECREATE_VENV=true
+fi
+
+if [ "$RECREATE_VENV" = true ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
+    echo "Virtual environment created at $VENV_DIR"
+else
+    echo "Virtual environment already exists at $VENV_DIR"
+fi
+
+# Use the venv's own pip directly (avoids PEP 668 externally-managed errors)
+PIP="$VENV_DIR/bin/pip"
+PYTHON="$VENV_DIR/bin/python"
+
+# Upgrade pip inside the venv
+echo "Upgrading pip..."
+"$PYTHON" -m pip install --upgrade pip --quiet
+
+# Install package in editable mode
 echo ""
 echo "Installing sift..."
-if pip install -e "$SCRIPT_DIR[all]" --quiet 2>/dev/null; then
-    echo "sift installed successfully"
-elif pip install -e "$SCRIPT_DIR[all]" --user --quiet 2>/dev/null; then
-    echo "sift installed (user)"
-else
-    echo "Automated install failed. Please run manually:"
-    echo "    pip install -e \".[all]\""
-fi
+"$PIP" install -e "$SCRIPT_DIR[all]" --quiet
+echo "sift installed successfully"
 
 echo ""
 echo "Setup complete!"
 echo ""
 echo "Quick Start:"
+echo "  source .venv/bin/activate                       # Activate the venv (new shells)"
 echo "  sift template list                              # List available templates"
 echo "  sift new workflow-extraction --name my-session  # Create a session"
 echo "  sift run my-session                             # Interactive mode"

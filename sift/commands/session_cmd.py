@@ -8,7 +8,7 @@ from rich.panel import Panel
 from sift.ui import console, ICONS, pipeline_view, format_next_step
 from sift.models import (
     TEMPLATES_DIR, SESSIONS_DIR, ensure_dirs,
-    SessionTemplate, Session,
+    SessionTemplate, Session, merge_templates,
 )
 
 app = typer.Typer(no_args_is_help=True)
@@ -27,25 +27,50 @@ def _find_template(name: str) -> Path:
     raise FileNotFoundError(f"Template '{name}' not found in {TEMPLATES_DIR}")
 
 
+def _parse_template_arg(template_arg: str) -> list[tuple[str, Path]]:
+    """Parse a template argument that may contain '+' for multi-template.
+
+    Returns list of (stem_name, path) tuples.
+    """
+    names = [t.strip() for t in template_arg.split("+")]
+    results = []
+    for name in names:
+        path = _find_template(name)
+        results.append((name, path))
+    return results
+
+
 @app.command("create")
 def create(
     template: str = typer.Argument(..., help="Template name or path"),
     name: str = typer.Option(None, "--name", "-n", help="Session name"),
 ):
-    """Create a new session from a template."""
+    """Create a new session from a template (use '+' to combine: discovery-call+workflow-extraction)."""
     ensure_dirs()
-    
+
     try:
-        template_path = _find_template(template)
+        template_specs = _parse_template_arg(template)
     except FileNotFoundError as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
-    
-    tmpl = SessionTemplate.from_file(template_path)
-    
+
+    if len(template_specs) == 1:
+        _stem, path = template_specs[0]
+        tmpl = SessionTemplate.from_file(path)
+    else:
+        templates = []
+        stems = []
+        for stem, path in template_specs:
+            templates.append(SessionTemplate.from_file(path))
+            stems.append(stem)
+        tmpl = merge_templates(templates, stems)
+
     if not name:
         date_str = datetime.now().strftime("%Y-%m-%d")
-        slug = tmpl.name.lower().replace(" ", "-")[:30]
+        if len(template_specs) == 1:
+            slug = tmpl.name.lower().replace(" ", "-")[:30]
+        else:
+            slug = template_specs[0][0][:20] + f"+{len(template_specs) - 1}more"
         name = f"{date_str}_{slug}"
     
     # Check if session already exists
@@ -56,10 +81,20 @@ def create(
     session = Session.create(name, tmpl)
 
     # Show creation summary
-    phases_list = "\n".join(
-        f"  {ICONS['pending']} {phase.name} [dim]({phase.id})[/dim]"
-        for phase in tmpl.phases
-    )
+    if len(template_specs) > 1:
+        parts = []
+        for stem, _ in template_specs:
+            prefix = f"{stem}."
+            tmpl_phases = [p for p in tmpl.phases if p.id.startswith(prefix)]
+            parts.append(f"  [bold]{stem}[/bold]")
+            for phase in tmpl_phases:
+                parts.append(f"    {ICONS['pending']} {phase.name} [dim]({phase.id})[/dim]")
+        phases_list = "\n".join(parts)
+    else:
+        phases_list = "\n".join(
+            f"  {ICONS['pending']} {phase.name} [dim]({phase.id})[/dim]"
+            for phase in tmpl.phases
+        )
 
     console.print(Panel(
         f"[bold]{tmpl.name}[/bold]\n"
