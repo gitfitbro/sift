@@ -1,0 +1,73 @@
+name: "Last Mile Data Assessment"
+description: "Framework for assessing data infrastructure needs for The Last Mile."
+
+phases:
+  - id: context
+    name: "Context & Background"
+    prompt: "Capture the initial context. What is the goal of this assessment? Who are the stakeholders?"
+    capture:
+      - type: audio
+        required: false
+      - type: text
+        required: false
+    extract:
+      - id: stakeholders
+        type: list
+        prompt: "List all stakeholders mentioned (e.g., Mark, Sirrele, etc.)"
+      - id: primary_goal
+        type: text
+        prompt: "What is the primary goal of this assessment?"
+
+  - id: current_state
+    name: "Current State Assessment"
+    prompt: "Discuss the current data infrastructure. What tools are used? Where is data stored? What are the pain points?"
+    capture:
+      - type: audio
+        required: true
+    extract:
+      - id: current_tools
+        type: list
+        prompt: "List all tools and platforms currently in use (e.g., Salesforce, Google Sheets, etc.)"
+      - id: data_sources
+        type: list
+        prompt: "List all data sources mentioned."
+      - id: pain_points
+        type: list
+        prompt: "List all pain points, bottlenecks, or issues mentioned."
+      - id: bus_factor_risks
+        type: list
+        prompt: "Identify processes that depend on a single person's knowledge or access."
+
+  - id: requirements
+    name: "Requirements & Constraints"
+    prompt: "What are the requirements for the new solution? Budget, timeline, technical constraints?"
+    capture:
+      - type: audio
+        required: false
+    extract:
+      - id: essential_requirements
+        type: list
+        prompt: "List the must-have requirements."
+      - id: budget
+        type: text
+        prompt: "What is the budget constraint?"
+      - id: timeline
+        type: text
+        prompt: "What is the expected timeline?"
+
+  - id: recommendation
+    name: "Recommendations"
+    prompt: "Based on the assessment, what are the recommended next steps or solutions?"
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: recommended_actions
+        type: list
+        prompt: "List the recommended actions or next steps."
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

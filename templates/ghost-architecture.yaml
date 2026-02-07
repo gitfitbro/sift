@@ -1,0 +1,75 @@
+name: "Ghost Architecture Audit"
+description: "Inventory and assess ad-hoc automations, scripts, and workarounds that have become invisible infrastructure."
+
+metadata:
+  scenario: "mentorship-ghost-architecture"
+  version: "1.0"
+
+phases:
+  - id: inventory
+    name: "The Inventory"
+    prompt: >
+      Show me everything you've built. Every script, every filter, every spreadsheet, 
+      every automation. Not to critique it — because you've probably built more than 
+      you realize.
+    capture:
+      - type: audio
+        required: true
+    extract:
+      - id: automations
+        type: list
+        prompt: >
+          For each automation/script/workaround, extract: what it is, where it lives, 
+          what it does, who knows about it, and what breaks without it
+      - id: data_flows
+        type: list
+        prompt: "Map each data flow: source system -> transformation -> destination"
+      - id: personal_accounts
+        type: list
+        prompt: "Identify anything running on personal accounts or devices rather than organizational infrastructure"
+
+  - id: bus_factor
+    name: "The Bus Factor"
+    prompt: >
+      If you took a two-week vacation starting tomorrow, what happens to each of 
+      those things? Walk me through it.
+    depends_on: inventory
+    capture:
+      - type: audio
+        required: true
+    extract:
+      - id: critical_dependencies
+        type: list
+        prompt: "List everything that would stop working without this person"
+      - id: knowledge_gaps
+        type: list
+        prompt: "Identify institutional knowledge that exists only in this person's head"
+      - id: immediate_risks
+        type: list
+        prompt: "What could go wrong RIGHT NOW if this person is unavailable?"
+
+  - id: promotion_plan
+    name: "From Prototype to Production"
+    prompt: >
+      You've been prototyping a system without knowing it. What does the production 
+      version look like? What needs to change to make this durable?
+    depends_on: bus_factor
+    capture:
+      - type: audio
+        required: false
+    extract:
+      - id: production_requirements
+        type: list
+        prompt: "What needs to change to make each automation production-grade?"
+      - id: documentation_needed
+        type: list
+        prompt: "What documentation needs to be created?"
+      - id: migration_steps
+        type: list
+        prompt: "Steps to move from personal/ad-hoc to organizational infrastructure"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

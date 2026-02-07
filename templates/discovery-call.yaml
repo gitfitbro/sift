@@ -1,0 +1,92 @@
+name: "Discovery Call"
+description: "Capture and structure a client or stakeholder discovery conversation. Extract requirements, constraints, and next steps."
+
+metadata:
+  scenario: "product-discovery"
+  version: "1.0"
+
+phases:
+  - id: context
+    name: "Current State"
+    prompt: >
+      Tell me about your current situation. What does your world look like today? 
+      What tools are you using? What's working, what's not?
+    capture:
+      - type: audio
+        required: true
+    extract:
+      - id: current_tools
+        type: list
+        prompt: "List all tools, platforms, and systems currently in use"
+      - id: pain_points
+        type: list
+        prompt: "Identify every pain point, frustration, or inefficiency mentioned"
+      - id: what_works
+        type: list
+        prompt: "Identify what's currently working well and should be preserved"
+
+  - id: goals
+    name: "Desired State"
+    prompt: >
+      If everything worked perfectly, what would that look like? 
+      What would change about your day-to-day?
+    depends_on: context
+    capture:
+      - type: audio
+        required: true
+    extract:
+      - id: desired_outcomes
+        type: list
+        prompt: "List the specific outcomes the person wants to achieve"
+      - id: success_metrics
+        type: list
+        prompt: "How would they measure whether the solution is working?"
+      - id: timeline
+        type: text
+        prompt: "What timeline or urgency did they express?"
+
+  - id: constraints
+    name: "Constraints & Requirements"
+    prompt: >
+      What are the non-negotiables? Budget, timeline, tools you have to use, 
+      people who need to approve, policies that apply?
+    depends_on: goals
+    capture:
+      - type: audio
+        required: false
+    extract:
+      - id: hard_constraints
+        type: list
+        prompt: "List non-negotiable requirements or constraints"
+      - id: preferences
+        type: list
+        prompt: "List preferences that are flexible"
+      - id: decision_makers
+        type: list
+        prompt: "Who needs to approve or be involved in the decision?"
+
+  - id: next_steps
+    name: "Next Steps"
+    prompt: >
+      Based on everything we discussed, what should happen next? 
+      Who does what by when?
+    depends_on: constraints
+    capture:
+      - type: audio
+        required: false
+    extract:
+      - id: action_items
+        type: list
+        prompt: "List each action item with owner and deadline"
+      - id: open_questions
+        type: list
+        prompt: "List questions that still need answers"
+      - id: follow_up
+        type: text
+        prompt: "When and how should the next conversation happen?"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

@@ -1,0 +1,110 @@
+name: "Workflow Extraction"
+description: "Extract and document a complete business workflow from a practitioner. Maps to mentorship Scenario 1."
+
+metadata:
+  scenario: "mentorship-workflow-extraction"
+  version: "1.0"
+  roles:
+    builder: "The practitioner describing their workflow"
+    advisor: "The mentor guiding the extraction"
+
+phases:
+  - id: describe
+    name: "Describe the Workflow"
+    prompt: >
+      Walk me through the entire process, start to finish. When someone first 
+      makes contact with your organization, what happens? Take me through every 
+      step, every handoff, every system involved.
+    capture:
+      - type: audio
+        required: true
+    extract:
+      - id: workflow_steps
+        type: list
+        prompt: "Extract each discrete step in the workflow as a sequential list with actor and action"
+      - id: systems_and_tools
+        type: list
+        prompt: "List every tool, platform, or system mentioned and what it's used for"
+      - id: actors_and_roles
+        type: list
+        prompt: "List every person or role involved and their responsibilities in the workflow"
+      - id: data_gaps
+        type: list
+        prompt: "Identify every data gap, disconnection, or pain point mentioned or implied"
+      - id: bus_factor_risks
+        type: list
+        prompt: "Identify processes that depend on a single person's knowledge or access"
+
+  - id: reflect
+    name: "Reflect & Validate"
+    prompt: >
+      Let me play this back to you. [Advisor summarizes the workflow]. 
+      Is that right? What did I miss?
+    depends_on: describe
+    capture:
+      - type: audio
+        required: false
+    extract:
+      - id: corrections
+        type: list
+        prompt: "Extract any corrections to the original workflow description"
+      - id: additions
+        type: list
+        prompt: "Extract any new steps, systems, or details that were added during reflection"
+      - id: clarifications
+        type: list
+        prompt: "Extract any ambiguities that were clarified"
+
+  - id: assess
+    name: "Solution Assessment"
+    prompt: >
+      For each pain point or gap we identified, what type of intervention does 
+      it need? Not everything needs code. Think about: process documentation, 
+      training, native platform configuration, low-code automation, API integration, 
+      or custom application.
+    depends_on: reflect
+    capture:
+      - type: audio
+        required: false
+    extract:
+      - id: interventions
+        type: map
+        prompt: >
+          Map each identified problem to an intervention level (1=Process/Documentation, 
+          2=Training, 3=Native Configuration, 4=Low-Code Automation, 5=API Integration, 
+          6=Custom Application) with brief rationale
+      - id: priorities
+        type: list
+        prompt: "List the problems in recommended priority order with reasoning"
+      - id: quick_wins
+        type: list
+        prompt: "Identify any immediate actions that can be taken this week with no engineering"
+
+  - id: org_context
+    name: "Organizational Context"
+    prompt: >
+      Different hat now. Let's talk about the environment. Who are the stakeholders? 
+      Who needs to approve this? What are the risks of moving forward vs. not?
+    depends_on: assess
+    capture:
+      - type: audio
+        required: false
+    extract:
+      - id: stakeholders
+        type: list
+        prompt: "List each stakeholder, their role, their likely perspective, and what needs to be validated with them"
+      - id: organizational_risks
+        type: list
+        prompt: "Identify organizational, political, or professional risks to the person driving this work"
+      - id: success_criteria
+        type: list
+        prompt: "What does success look like? What metrics or outcomes would demonstrate value?"
+      - id: constraints
+        type: list
+        prompt: "What constraints exist (budget, time, access, authority, policy)?"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary
