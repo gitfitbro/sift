@@ -54,7 +54,7 @@ class SessionRunnerScreen(Screen):
                 yield Button("Add More", id="btn-add-more", variant="default")
                 yield Button("Next Phase", id="btn-next", variant="success")
                 yield Button("Generate Outputs", id="btn-build", variant="warning")
-                yield Button("Done – Exit", id="btn-done", variant="success")
+                yield Button("Done - Exit", id="btn-done", variant="success")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -375,8 +375,7 @@ class SessionRunnerScreen(Screen):
         build_btn.display = False
         done_btn.display = True
         status_msg.update(
-            f"{ICONS['complete']} All done! Generated: {files}\n"
-            f"Press Done to exit, or q to quit."
+            f"{ICONS['complete']} All done! Generated: {files}\nPress Done to exit, or q to quit."
         )
 
     @on(Button.Pressed, "#btn-done")

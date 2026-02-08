@@ -19,8 +19,7 @@ class TestThemeColors:
                 Color.parse(color_str)
             except Exception as e:
                 pytest.fail(
-                    f"STATUS_COLORS['{status}'] = '{color_str}' is not a valid "
-                    f"Textual color: {e}"
+                    f"STATUS_COLORS['{status}'] = '{color_str}' is not a valid Textual color: {e}"
                 )
 
     def test_fallback_colors_valid(self):
@@ -36,7 +35,7 @@ class TestThemeColors:
         """Colors used in Rich Text style= arguments must render without error."""
         from sift.tui.theme import STATUS_COLORS
 
-        for status, color_str in STATUS_COLORS.items():
+        for _status, color_str in STATUS_COLORS.items():
             # These patterns match how colors are used in pipeline.py and phase_panel.py
             text1 = Text("test", style=color_str)
             assert text1.plain == "test"
@@ -49,9 +48,9 @@ class TestThemeColors:
 
     def test_no_camel_case_colors(self):
         """Ensure no camelCase color names sneak in (Textual doesn't support them)."""
-        from sift.tui.theme import STATUS_COLORS
-
         import re
+
+        from sift.tui.theme import STATUS_COLORS
 
         camel_pattern = re.compile(r"[a-z][A-Z]")
         for status, color_str in STATUS_COLORS.items():

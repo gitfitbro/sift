@@ -140,7 +140,9 @@ class AnalysisService:
 
         # Analyze
         structure = self._analyzer.analyze(project_path, provider=provider)
-        return self.create_session_from_structure(structure, provider=provider, session_name=session_name)
+        return self.create_session_from_structure(
+            structure, provider=provider, session_name=session_name
+        )
 
     def create_session_from_structure(
         self,
