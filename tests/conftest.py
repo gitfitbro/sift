@@ -31,8 +31,11 @@ def sift_home(tmp_path, monkeypatch):
     # Also patch the local references imported into service modules
     import sift.core.session_service as session_svc
     import sift.core.template_service as template_svc
+    import sift.core.export_service as export_svc
     monkeypatch.setattr(session_svc, "SESSIONS_DIR", home / "sessions")
     monkeypatch.setattr(template_svc, "TEMPLATES_DIR", home / "templates")
+    monkeypatch.setattr(export_svc, "SESSIONS_DIR", home / "sessions")
+    monkeypatch.setattr(export_svc, "TEMPLATES_DIR", home / "templates")
 
     # Reset the config service singleton so each test gets a fresh instance
     from sift.core.config_service import reset_config_service

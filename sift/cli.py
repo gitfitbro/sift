@@ -18,7 +18,7 @@ app = typer.Typer(
 )
 
 # Import subcommands
-from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd, config_cmd, doctor_cmd, plugin_cmd
+from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd, config_cmd, doctor_cmd, plugin_cmd, export_cmd
 
 app.add_typer(template_cmd.app, name="template", help="Manage session templates", rich_help_panel="Advanced")
 app.add_typer(session_cmd.app, name="session", help="Manage sessions", rich_help_panel="Advanced")
@@ -27,6 +27,8 @@ app.add_typer(build_cmd.app, name="build", help="Generate outputs from sessions"
 app.add_typer(config_cmd.app, name="config", help="Manage configuration", rich_help_panel="Advanced")
 app.add_typer(doctor_cmd.app, name="doctor", help="Check environment & diagnostics", rich_help_panel="Info")
 app.add_typer(plugin_cmd.app, name="plugins", help="List discovered plugins", rich_help_panel="Info")
+app.add_typer(export_cmd.app, name="export", help="Export sessions & templates", rich_help_panel="Data")
+app.add_typer(export_cmd.import_app, name="import-data", help="Import sessions & templates", rich_help_panel="Data")
 
 
 @app.callback()
