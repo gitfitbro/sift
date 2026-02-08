@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from sift.core import CaptureResult, TranscribeResult, ExtractionResult
+from sift.errors import PhaseNotFoundError, CaptureError, ExtractionError
 from sift.models import ensure_dirs, Session
 
 logger = logging.getLogger("sift.core.extraction")
@@ -28,8 +29,9 @@ class ExtractionService:
         """Capture a file (audio, text, or PDF) for a session phase.
 
         Raises:
-            FileNotFoundError: If session or file not found.
-            ValueError: If phase not found or unsupported file type.
+            SessionNotFoundError: If session not found.
+            PhaseNotFoundError: If phase not found.
+            CaptureError: If file not found or unsupported file type.
         """
         ensure_dirs()
         s = Session.load(session_name)
@@ -37,13 +39,16 @@ class ExtractionService:
 
         pt = next((p for p in tmpl.phases if p.id == phase_id), None)
         if not pt:
-            raise ValueError(
-                f"Phase '{phase_id}' not found. "
-                f"Available: {', '.join(p.id for p in tmpl.phases)}"
+            raise PhaseNotFoundError(
+                phase_id, session_name,
+                available=[p.id for p in tmpl.phases],
             )
 
         if not file_path.exists():
-            raise FileNotFoundError(f"File not found: {file_path}")
+            raise CaptureError(
+                f"File not found: {file_path}",
+                phase_id=phase_id, file_path=str(file_path),
+            )
 
         ps = s.phases[phase_id]
         phase_dir = s.phase_dir(phase_id)
@@ -88,9 +93,10 @@ class ExtractionService:
 
         else:
             supported = AUDIO_EXTENSIONS | TEXT_EXTENSIONS | PDF_EXTENSIONS
-            raise ValueError(
+            raise CaptureError(
                 f"Unsupported file type: {suffix}. "
-                f"Supported: {', '.join(sorted(supported))}"
+                f"Supported: {', '.join(sorted(supported))}",
+                phase_id=phase_id, file_path=str(file_path),
             )
 
     def capture_text(
@@ -99,8 +105,9 @@ class ExtractionService:
         """Capture text content directly for a session phase.
 
         Raises:
-            FileNotFoundError: If session not found.
-            ValueError: If phase not found or text is empty.
+            SessionNotFoundError: If session not found.
+            PhaseNotFoundError: If phase not found.
+            CaptureError: If text is empty.
         """
         ensure_dirs()
         s = Session.load(session_name)
@@ -108,10 +115,10 @@ class ExtractionService:
 
         pt = next((p for p in tmpl.phases if p.id == phase_id), None)
         if not pt:
-            raise ValueError(f"Phase '{phase_id}' not found")
+            raise PhaseNotFoundError(phase_id, session_name)
 
         if not text.strip():
-            raise ValueError("No text provided")
+            raise CaptureError("No text provided", phase_id=phase_id)
 
         ps = s.phases[phase_id]
         phase_dir = s.phase_dir(phase_id)
@@ -148,17 +155,21 @@ class ExtractionService:
         """Transcribe audio for a phase using the active AI provider.
 
         Raises:
-            FileNotFoundError: If session not found.
-            ValueError: If phase not found, no audio, or already transcribed.
+            SessionNotFoundError: If session not found.
+            PhaseNotFoundError: If phase not found.
+            CaptureError: If no audio file exists for the phase.
         """
         ensure_dirs()
         s = Session.load(session_name)
 
         ps = s.phases.get(phase_id)
         if not ps:
-            raise ValueError(f"Phase '{phase_id}' not found")
+            raise PhaseNotFoundError(phase_id, session_name)
         if not ps.audio_file:
-            raise ValueError(f"No audio file for phase '{phase_id}'")
+            raise CaptureError(
+                f"No audio file for phase '{phase_id}'",
+                phase_id=phase_id,
+            )
 
         audio_path = s.phase_dir(phase_id) / ps.audio_file
 
@@ -185,8 +196,9 @@ class ExtractionService:
         """Extract structured data from a phase transcript.
 
         Raises:
-            FileNotFoundError: If session not found.
-            ValueError: If phase not found, no transcript, or no extraction fields.
+            SessionNotFoundError: If session not found.
+            PhaseNotFoundError: If phase not found.
+            ExtractionError: If no transcript available.
         """
         ensure_dirs()
         s = Session.load(session_name)
@@ -194,12 +206,15 @@ class ExtractionService:
 
         pt = next((p for p in tmpl.phases if p.id == phase_id), None)
         if not pt:
-            raise ValueError(f"Phase '{phase_id}' not found")
+            raise PhaseNotFoundError(phase_id, session_name)
 
         ps = s.phases[phase_id]
         transcript = s.get_transcript(phase_id)
         if not transcript:
-            raise ValueError(f"No transcript for phase '{phase_id}'")
+            raise ExtractionError(
+                f"No transcript for phase '{phase_id}'",
+                phase_id=phase_id, session_name=session_name,
+            )
 
         if not pt.extract:
             # No extraction fields - mark complete
@@ -276,8 +291,9 @@ class ExtractionService:
         from sift.pdf import extract_text_from_pdf, PDF_AVAILABLE
 
         if not PDF_AVAILABLE:
-            raise ImportError(
-                "PDF support not available. Install with: pip install pdfplumber"
+            raise CaptureError(
+                "PDF support not available. Install with: pip install pdfplumber",
+                phase_id=ps.id,
             )
 
         pdf_text, pdf_stats = extract_text_from_pdf(file_path)

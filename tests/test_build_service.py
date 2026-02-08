@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from sift.core.build_service import BuildService
 from sift.core.extraction_service import ExtractionService
 from sift.models import Session
+from sift.errors import ExtractionError, SessionNotFoundError
 
 
 class TestGenerateOutputs:
@@ -51,12 +52,12 @@ class TestGenerateOutputs:
 
     def test_generate_no_data(self, sample_session):
         svc = BuildService()
-        with pytest.raises(ValueError, match="No extracted data"):
+        with pytest.raises(ExtractionError):
             svc.generate_outputs("test-session")
 
     def test_generate_bad_session(self):
         svc = BuildService()
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(SessionNotFoundError):
             svc.generate_outputs("nonexistent")
 
     def test_output_dir_created(self, sample_session, mock_provider):
@@ -71,12 +72,12 @@ class TestGenerateOutputs:
 class TestGenerateSummary:
     def test_summary_no_data(self, sample_session):
         svc = BuildService()
-        with pytest.raises(ValueError, match="No data"):
+        with pytest.raises(ExtractionError):
             svc.generate_summary("test-session")
 
     def test_summary_bad_session(self):
         svc = BuildService()
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(SessionNotFoundError):
             svc.generate_summary("nonexistent")
 
     def test_summary_with_data(self, sample_session, mock_provider):

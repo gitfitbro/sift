@@ -24,6 +24,10 @@ class AnthropicProvider:
     def chat(self, system: str, user: str, max_tokens: int = 4000) -> str:
         """Send a chat message and return the response text."""
         import anthropic
+        from sift.errors import (
+            ProviderAuthError, ProviderQuotaError,
+            ProviderModelError, ProviderError,
+        )
 
         client = anthropic.Anthropic(api_key=self.api_key)
 
@@ -35,12 +39,35 @@ class AnthropicProvider:
         if system:
             kwargs["system"] = system
 
-        message = client.messages.create(**kwargs)
-        return message.content[0].text
+        try:
+            message = client.messages.create(**kwargs)
+            return message.content[0].text
+        except anthropic.AuthenticationError as e:
+            raise ProviderAuthError(
+                "Anthropic API key is invalid or expired.\n"
+                "Check ANTHROPIC_API_KEY or run: sift config set-key anthropic",
+                provider=self.name, model=self.model,
+            ) from e
+        except anthropic.RateLimitError as e:
+            raise ProviderQuotaError(
+                "Anthropic rate limit exceeded. Wait and retry.",
+                provider=self.name, model=self.model,
+            ) from e
+        except anthropic.NotFoundError as e:
+            raise ProviderModelError(
+                f"Model '{self.model}' not found on Anthropic.",
+                provider=self.name, model=self.model,
+            ) from e
+        except anthropic.APIError as e:
+            raise ProviderError(
+                f"Anthropic API error: {e}",
+                provider=self.name, model=self.model,
+            ) from e
 
     def transcribe(self, audio_path: Path) -> Optional[str]:
         """Transcribe audio using Claude's audio document input."""
         import anthropic
+        from sift.errors import ProviderAuthError, ProviderError
 
         logger.info("Transcribing with Claude (%s)...", self.model)
 
@@ -59,33 +86,43 @@ class AnthropicProvider:
 
         client = anthropic.Anthropic(api_key=self.api_key)
 
-        message = client.messages.create(
-            model=self.model,
-            max_tokens=16000,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "document",
-                            "source": {
-                                "type": "base64",
-                                "media_type": media_type,
-                                "data": audio_data,
+        try:
+            message = client.messages.create(
+                model=self.model,
+                max_tokens=16000,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "document",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": media_type,
+                                    "data": audio_data,
+                                },
                             },
-                        },
-                        {
-                            "type": "text",
-                            "text": (
-                                "Please transcribe this audio recording verbatim. "
-                                "Include all speakers, filler words, and natural speech patterns. "
-                                "If there are multiple speakers, label them (Speaker 1, Speaker 2, etc). "
-                                "Output ONLY the transcript text, nothing else."
-                            ),
-                        },
-                    ],
-                }
-            ],
-        )
-
-        return message.content[0].text
+                            {
+                                "type": "text",
+                                "text": (
+                                    "Please transcribe this audio recording verbatim. "
+                                    "Include all speakers, filler words, and natural speech patterns. "
+                                    "If there are multiple speakers, label them (Speaker 1, Speaker 2, etc). "
+                                    "Output ONLY the transcript text, nothing else."
+                                ),
+                            },
+                        ],
+                    }
+                ],
+            )
+            return message.content[0].text
+        except anthropic.AuthenticationError as e:
+            raise ProviderAuthError(
+                "Anthropic API key is invalid or expired.",
+                provider=self.name, model=self.model,
+            ) from e
+        except anthropic.APIError as e:
+            raise ProviderError(
+                f"Anthropic transcription error: {e}",
+                provider=self.name, model=self.model,
+            ) from e

@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from sift.core.extraction_service import ExtractionService
 from sift.models import Session
+from sift.errors import CaptureError, PhaseNotFoundError, SessionNotFoundError, ExtractionError
 
 
 class TestCaptureText:
@@ -23,17 +24,17 @@ class TestCaptureText:
 
     def test_capture_text_empty(self, sample_session):
         svc = ExtractionService()
-        with pytest.raises(ValueError, match="No text"):
+        with pytest.raises(CaptureError):
             svc.capture_text("test-session", "gather-info", "   ")
 
     def test_capture_text_bad_phase(self, sample_session):
         svc = ExtractionService()
-        with pytest.raises(ValueError, match="not found"):
+        with pytest.raises(PhaseNotFoundError):
             svc.capture_text("test-session", "nonexistent", "test")
 
     def test_capture_text_bad_session(self):
         svc = ExtractionService()
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(SessionNotFoundError):
             svc.capture_text("nonexistent", "phase", "test")
 
 
@@ -63,12 +64,12 @@ class TestCaptureFile:
         bad_file.write_bytes(b"\x00")
 
         svc = ExtractionService()
-        with pytest.raises(ValueError, match="Unsupported"):
+        with pytest.raises(CaptureError):
             svc.capture_file("test-session", "gather-info", bad_file)
 
     def test_capture_missing_file(self, sample_session, tmp_path):
         svc = ExtractionService()
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(CaptureError):
             svc.capture_file("test-session", "gather-info", tmp_path / "nope.txt")
 
 
@@ -93,7 +94,7 @@ class TestExtractPhase:
 
     def test_extract_no_transcript(self, sample_session):
         svc = ExtractionService()
-        with pytest.raises(ValueError, match="No transcript"):
+        with pytest.raises(ExtractionError):
             svc.extract_phase("test-session", "gather-info")
 
     def test_extract_no_fields(self, sample_session, sift_home):

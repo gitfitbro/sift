@@ -6,6 +6,7 @@ from rich.table import Table
 from sift.ui import console
 from sift.core.template_service import TemplateService
 from sift.completions import complete_template_name
+from sift.error_handler import handle_errors
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -13,6 +14,7 @@ _svc = TemplateService()
 
 
 @app.command("list")
+@handle_errors
 def list_templates():
     """List available session templates."""
     templates = _svc.list_templates()
@@ -41,13 +43,10 @@ def list_templates():
 
 
 @app.command("show")
+@handle_errors
 def show_template(name: str = typer.Argument(..., help="Template name", autocompletion=complete_template_name)):
     """Show details of a template."""
-    try:
-        detail = _svc.show_template(name)
-    except FileNotFoundError:
-        console.print(f"[red]Template '{name}' not found[/red]")
-        raise typer.Exit(1)
+    detail = _svc.show_template(name)
 
     console.print(f"\n[bold cyan]{detail.name}[/bold cyan]")
     console.print(f"[dim]{detail.description}[/dim]\n")
@@ -74,6 +73,7 @@ def show_template(name: str = typer.Argument(..., help="Template name", autocomp
 
 
 @app.command("init")
+@handle_errors
 def init_template():
     """Create a starter template interactively."""
     console.print("\n[bold]Create a new session template[/bold]\n")
@@ -145,27 +145,15 @@ def init_template():
         ],
     }
 
-    try:
-        path = _svc.create_template(template_data)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-
+    path = _svc.create_template(template_data)
     console.print(f"\n[green]Template saved to {path}[/green]")
 
 
 @app.command("import")
+@handle_errors
 def import_template(
     path: Path = typer.Argument(..., help="Path to template YAML file"),
 ):
     """Import a template from a file."""
-    try:
-        info = _svc.import_template(path)
-    except FileNotFoundError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-
+    info = _svc.import_template(path)
     console.print(f"[green]Imported '{info.name}' ({info.phase_count} phases)[/green]")

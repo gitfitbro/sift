@@ -9,6 +9,10 @@ from typing import Optional
 from copy import deepcopy
 from .config import get_sift_home
 
+# ── Schema Versions ──
+SCHEMA_VERSION_SESSION = 1
+SCHEMA_VERSION_TEMPLATE = 1
+
 # ── Paths ──
 BASE_DIR = get_sift_home()
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -88,8 +92,19 @@ class SessionTemplate:
     
     @classmethod
     def from_file(cls, path: Path) -> "SessionTemplate":
+        from sift.errors import SchemaVersionError
+
         with open(path) as f:
             d = yaml.safe_load(f)
+
+        file_version = d.get("schema_version", 0)
+        if file_version > SCHEMA_VERSION_TEMPLATE:
+            raise SchemaVersionError(
+                str(path),
+                found_version=file_version,
+                expected_version=SCHEMA_VERSION_TEMPLATE,
+            )
+
         return cls(
             name=d["name"],
             description=d.get("description", ""),
@@ -100,6 +115,7 @@ class SessionTemplate:
     
     def to_dict(self) -> dict:
         return {
+            "schema_version": SCHEMA_VERSION_TEMPLATE,
             "name": self.name,
             "description": self.description,
             "phases": [
@@ -222,6 +238,7 @@ class Session:
     def save(self):
         self.updated_at = datetime.now().isoformat()
         state = {
+            "schema_version": SCHEMA_VERSION_SESSION,
             "name": self.name,
             "template_name": self.template_name,
             "created_at": self.created_at,
@@ -250,13 +267,23 @@ class Session:
     
     @classmethod
     def load(cls, name: str) -> "Session":
+        from sift.errors import SessionNotFoundError, SchemaVersionError
+
         session_dir = SESSIONS_DIR / name
         if not session_dir.exists():
-            raise FileNotFoundError(f"Session '{name}' not found")
-        
+            raise SessionNotFoundError(name)
+
         with open(session_dir / "session.yaml") as f:
             d = yaml.safe_load(f)
-        
+
+        file_version = d.get("schema_version", 0)
+        if file_version > SCHEMA_VERSION_SESSION:
+            raise SchemaVersionError(
+                str(session_dir / "session.yaml"),
+                found_version=file_version,
+                expected_version=SCHEMA_VERSION_SESSION,
+            )
+
         phases = {}
         for pid, ps in d.get("phases", {}).items():
             phases[pid] = PhaseState(

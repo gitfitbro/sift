@@ -76,13 +76,13 @@ async def sift_create_session(
     """
     from sift.core.session_service import SessionService
 
+    from sift.errors import SiftError
+
     svc = SessionService()
     try:
         detail = svc.create_session(template, name)
         return {"status": "created", "session": _serialize(detail)}
-    except FileNotFoundError as e:
-        return {"status": "error", "error": str(e)}
-    except ValueError as e:
+    except (SiftError, ValueError) as e:
         return {"status": "error", "error": str(e)}
 
 
@@ -105,11 +105,13 @@ async def sift_session_status(session_name: str) -> dict:
     """
     from sift.core.session_service import SessionService
 
+    from sift.errors import SiftError
+
     svc = SessionService()
     try:
         detail = svc.get_session_status(session_name)
         return {"status": "ok", "session": _serialize(detail)}
-    except FileNotFoundError as e:
+    except SiftError as e:
         return {"status": "error", "error": str(e)}
 
 
@@ -133,11 +135,13 @@ async def sift_capture_text(
     """
     from sift.core.extraction_service import ExtractionService
 
+    from sift.errors import SiftError
+
     svc = ExtractionService()
     try:
         result = svc.capture_text(session_name, phase_id, text)
         return {"status": "ok", "capture": _serialize(result)}
-    except (FileNotFoundError, ValueError) as e:
+    except SiftError as e:
         return {"status": "error", "error": str(e)}
 
 
@@ -156,11 +160,13 @@ async def sift_extract_phase(
     """
     from sift.core.extraction_service import ExtractionService
 
+    from sift.errors import SiftError
+
     svc = ExtractionService()
     try:
         result = svc.extract_phase(session_name, phase_id)
         return {"status": "ok", "extraction": _serialize(result)}
-    except (FileNotFoundError, ValueError) as e:
+    except SiftError as e:
         return {"status": "error", "error": str(e)}
 
 
@@ -182,6 +188,8 @@ async def sift_build_outputs(
     """
     from sift.core.build_service import BuildService
 
+    from sift.errors import SiftError
+
     svc = BuildService()
     try:
         result = svc.generate_outputs(session_name, format)
@@ -193,7 +201,7 @@ async def sift_build_outputs(
                 for label, path in result.generated_files
             ],
         }
-    except (FileNotFoundError, ValueError) as e:
+    except SiftError as e:
         return {"status": "error", "error": str(e)}
 
 
@@ -260,11 +268,13 @@ async def sift_export_session(session_name: str) -> dict:
     """
     from sift.core.session_service import SessionService
 
+    from sift.errors import SiftError
+
     svc = SessionService()
     try:
         export = svc.export_session(session_name)
         return {"status": "ok", "data": export.data}
-    except FileNotFoundError as e:
+    except SiftError as e:
         return {"status": "error", "error": str(e)}
 
 

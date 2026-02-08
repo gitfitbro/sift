@@ -97,17 +97,21 @@ class TemplateService:
         """Import a template from an external file.
 
         Raises:
-            FileNotFoundError: If source file not found.
-            ValueError: If template is invalid.
+            CaptureError: If source file not found.
+            SiftError: If template is invalid.
         """
+        from sift.errors import CaptureError
         ensure_dirs()
         if not path.exists():
-            raise FileNotFoundError(f"File not found: {path}")
+            raise CaptureError(f"File not found: {path}", file_path=str(path))
 
+        from sift.errors import SiftError
         try:
             t = SessionTemplate.from_file(path)
+        except SiftError:
+            raise
         except Exception as e:
-            raise ValueError(f"Invalid template: {e}") from e
+            raise SiftError(f"Invalid template: {e}") from e
 
         dest = TEMPLATES_DIR / path.name
         shutil.copy2(path, dest)
@@ -131,12 +135,13 @@ class TemplateService:
         """Find a template by name. Public wrapper for _find_template_path.
 
         Raises:
-            FileNotFoundError: If template not found.
+            TemplateNotFoundError: If template not found.
         """
         return self._find_template_path(name)
 
     def _find_template_path(self, name: str) -> Path:
         """Find a template file by name."""
+        from sift.errors import TemplateNotFoundError
         for ext in (".yaml", ".yml"):
             path = TEMPLATES_DIR / f"{name}{ext}"
             if path.exists():
@@ -145,4 +150,4 @@ class TemplateService:
         p = Path(name)
         if p.exists():
             return p
-        raise FileNotFoundError(f"Template '{name}' not found in {TEMPLATES_DIR}")
+        raise TemplateNotFoundError(name, search_dir=str(TEMPLATES_DIR))

@@ -10,11 +10,13 @@ from sift.ui import console, ICONS, format_next_step
 from sift.models import ensure_dirs, Session
 from sift.pdf import extract_text_from_pdf, PDF_AVAILABLE, PDF_ENGINE
 from sift.document_analyzer import analyze_document_for_phases
+from sift.error_handler import handle_errors
 
 app = typer.Typer(no_args_is_help=True)
 
 
 @app.command("document")
+@handle_errors
 def import_document(
     session: str = typer.Argument(..., help="Session name"),
     file: Path = typer.Option(..., "--file", "-f", help="PDF or text file to import"),
@@ -23,15 +25,11 @@ def import_document(
     """Analyze a document and distribute sections to matching session phases."""
     ensure_dirs()
 
-    try:
-        s = Session.load(session)
-    except FileNotFoundError:
-        console.print(f"[red]Session '{session}' not found[/red]")
-        raise typer.Exit(1)
+    s = Session.load(session)  # raises SessionNotFoundError
 
     if not file.exists():
-        console.print(f"[red]File not found: {file}[/red]")
-        raise typer.Exit(1)
+        from sift.errors import CaptureError
+        raise CaptureError(f"File not found: {file}", file_path=str(file))
 
     tmpl = s.get_template()
 
@@ -39,8 +37,8 @@ def import_document(
     suffix = file.suffix.lower()
     if suffix == ".pdf":
         if not PDF_AVAILABLE:
-            console.print("[red]PDF support not available. Install with: pip install pdfplumber[/red]")
-            raise typer.Exit(1)
+            from sift.errors import CaptureError
+            raise CaptureError("PDF support not available. Install with: pip install pdfplumber")
 
         with console.status("[bold cyan]Reading PDF...[/bold cyan]"):
             try:
@@ -72,8 +70,8 @@ def import_document(
         console.print(f"[green]Text file loaded ({len(doc_text):,} chars)[/green]")
 
     else:
-        console.print(f"[red]Unsupported file type: {suffix}. Use PDF or text files.[/red]")
-        raise typer.Exit(1)
+        from sift.errors import CaptureError
+        raise CaptureError(f"Unsupported file type: {suffix}. Use PDF or text files.", file_path=str(file))
 
     # ── Store document at session level ──
     docs_dir = s.dir / "documents"

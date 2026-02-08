@@ -67,25 +67,37 @@ class GeminiProvider:
             )
             return response.text
         except Exception as e:
+            from sift.errors import (
+                ProviderAuthError, ProviderQuotaError,
+                ProviderModelError, ProviderError,
+            )
             err_msg = str(e).lower()
             if "quota" in err_msg or "resource_exhausted" in err_msg or "429" in err_msg:
-                raise RuntimeError(
-                    f"Gemini quota exceeded.\n"
-                    "Free tier limit reached. Check billing at https://ai.google.dev/gemini-api/docs/rate-limits"
+                raise ProviderQuotaError(
+                    "Gemini quota exceeded.\n"
+                    "Free tier limit reached. Check billing at "
+                    "https://ai.google.dev/gemini-api/docs/rate-limits",
+                    provider=self.name, model=self.model,
                 ) from e
             if "invalid" in err_msg and "key" in err_msg:
-                raise RuntimeError(
-                    f"Gemini API key invalid.\n"
-                    "Check that GOOGLE_API_KEY is valid and the Generative Language API is enabled."
+                raise ProviderAuthError(
+                    "Gemini API key invalid.\n"
+                    "Check that GOOGLE_API_KEY is valid and the "
+                    "Generative Language API is enabled.",
+                    provider=self.name, model=self.model,
                 ) from e
             if "not found" in err_msg or "does not exist" in err_msg:
                 available = "\n".join(f"  {m} - {d}" for m, d in GEMINI_MODELS.items())
-                raise RuntimeError(
+                raise ProviderModelError(
                     f"Model '{self.model}' not found.\n"
                     f"Available models:\n{available}\n\n"
-                    "Set via: GEMINI_MODEL=model-name or --model flag"
+                    "Set via: GEMINI_MODEL=model-name or --model flag",
+                    provider=self.name, model=self.model,
                 ) from e
-            raise RuntimeError(f"Gemini API error: {e}") from e
+            raise ProviderError(
+                f"Gemini API error: {e}",
+                provider=self.name, model=self.model,
+            ) from e
 
     def transcribe(self, audio_path: Path) -> Optional[str]:
         """Transcribe audio using Gemini's file upload API."""
@@ -111,5 +123,8 @@ class GeminiProvider:
             logger.error("Gemini import error: %s", e)
             return None
         except Exception as e:
-            logger.warning("Gemini transcription failed: %s", e)
-            return None
+            from sift.errors import ProviderError
+            raise ProviderError(
+                f"Gemini transcription failed: {e}",
+                provider=self.name, model=self.model,
+            ) from e

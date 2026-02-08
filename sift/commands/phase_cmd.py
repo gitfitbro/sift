@@ -7,6 +7,7 @@ from sift.ui import console, ICONS, format_next_step
 from sift.core.extraction_service import ExtractionService
 from sift.pdf import PDF_ENGINE
 from sift.completions import complete_session_name, complete_phase_id
+from sift.error_handler import handle_errors
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -14,6 +15,7 @@ _svc = ExtractionService()
 
 
 @app.command("capture")
+@handle_errors
 def capture_phase(
     session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
     phase: str = typer.Option(..., "--phase", "-p", help="Phase ID", autocompletion=complete_phase_id),
@@ -22,15 +24,7 @@ def capture_phase(
 ):
     """Capture audio, transcript, or PDF document for a session phase."""
     if file:
-        try:
-            result = _svc.capture_file(session, phase, file)
-        except FileNotFoundError as e:
-            console.print(f"[red]{e}[/red]")
-            raise typer.Exit(1)
-        except (ValueError, ImportError) as e:
-            console.print(f"[red]{e}[/red]")
-            raise typer.Exit(1)
-
+        result = _svc.capture_file(session, phase, file)
         _render_capture_result(result, file, session, phase)
 
         # If multi-phase detected, suggest import command
@@ -63,12 +57,7 @@ def capture_phase(
             console.print("[yellow]No text entered. Aborting.[/yellow]")
             raise typer.Exit(0)
 
-        try:
-            result = _svc.capture_text(session, phase, transcript)
-        except (FileNotFoundError, ValueError) as e:
-            console.print(f"[red]{e}[/red]")
-            raise typer.Exit(1)
-
+        result = _svc.capture_text(session, phase, transcript)
         console.print(f"\n[green]Transcript saved ({result.char_count} chars)[/green]")
         format_next_step(f"sift phase extract {session} --phase {phase}")
 
@@ -95,22 +84,13 @@ def capture_phase(
 
 
 @app.command("transcribe")
+@handle_errors
 def transcribe_phase(
     session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
     phase: str = typer.Option(..., "--phase", "-p", help="Phase ID", autocompletion=complete_phase_id),
 ):
     """Transcribe audio for a session phase."""
-    try:
-        result = _svc.transcribe_phase(session, phase)
-    except FileNotFoundError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-    except Exception as e:
-        console.print(f"[red]Transcription error: {e}[/red]")
-        raise typer.Exit(1)
+    result = _svc.transcribe_phase(session, phase)
 
     console.print(f"\n[green]Transcription complete ({result.char_count} chars)[/green]")
     console.print(Panel(
@@ -122,23 +102,14 @@ def transcribe_phase(
 
 
 @app.command("extract")
+@handle_errors
 def extract_phase(
     session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
     phase: str = typer.Option(..., "--phase", "-p", help="Phase ID", autocompletion=complete_phase_id),
 ):
     """Extract structured data from a phase transcript."""
-    try:
-        with console.status(f"[bold]Extracting structured data...[/bold]"):
-            result = _svc.extract_phase(session, phase)
-    except FileNotFoundError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-    except Exception as e:
-        console.print(f"[red]Extraction error: {e}[/red]")
-        raise typer.Exit(1)
+    with console.status(f"[bold]Extracting structured data...[/bold]"):
+        result = _svc.extract_phase(session, phase)
 
     if not result.fields:
         console.print(f"[yellow]Phase '{phase}' has no extraction fields defined. Marked complete.[/yellow]")

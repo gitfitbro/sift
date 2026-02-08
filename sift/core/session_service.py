@@ -193,7 +193,7 @@ class SessionService:
         try:
             s = Session.load(session_name)
             return list(s.phases.keys())
-        except FileNotFoundError:
+        except Exception:
             return []
 
     def get_template_names(self) -> list[str]:

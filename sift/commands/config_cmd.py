@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import typer
 from sift.ui import console
+from sift.error_handler import handle_errors
 
 app = typer.Typer(
     name="config",
@@ -13,6 +14,7 @@ app = typer.Typer(
 
 
 @app.command()
+@handle_errors
 def show():
     """Display the resolved configuration (all layers merged)."""
     from rich.panel import Panel
@@ -70,6 +72,7 @@ def show():
 
 
 @app.command("set")
+@handle_errors
 def set_value(
     key: str = typer.Argument(..., help="Config key in dotted notation (e.g. providers.default)"),
     value: str = typer.Argument(..., help="Value to set"),
@@ -96,6 +99,7 @@ def set_value(
 
 
 @app.command("set-key")
+@handle_errors
 def set_key(
     provider: str = typer.Argument(..., help="Provider name (anthropic, gemini)"),
     api_key: str = typer.Argument(..., help="API key to store"),
@@ -103,27 +107,19 @@ def set_key(
     """Store an API key securely for a provider."""
     from sift.core.secrets import store_key
 
-    try:
-        store_key(provider, api_key)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
+    store_key(provider, api_key)
     console.print(f"[green]Stored API key for {provider}[/green]")
 
 
 @app.command("remove-key")
+@handle_errors
 def remove_key(
     provider: str = typer.Argument(..., help="Provider name (anthropic, gemini)"),
 ):
     """Remove a stored API key for a provider."""
     from sift.core.secrets import remove_key as _remove_key
 
-    try:
-        removed = _remove_key(provider)
-    except ValueError as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-
+    removed = _remove_key(provider)
     if removed:
         console.print(f"[green]Removed API key for {provider}[/green]")
     else:
@@ -131,20 +127,18 @@ def remove_key(
 
 
 @app.command()
+@handle_errors
 def init():
     """Create a .sift.toml project config in the current directory."""
     from sift.core.config_service import get_config_service
 
     svc = get_config_service()
-    try:
-        path = svc.init_project_config()
-    except FileExistsError as e:
-        console.print(f"[yellow]{e}[/yellow]")
-        raise typer.Exit(1)
+    path = svc.init_project_config()
     console.print(f"[green]Created project config:[/green] {path}")
 
 
 @app.command()
+@handle_errors
 def path():
     """Show all configuration file locations."""
     from rich.table import Table

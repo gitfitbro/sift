@@ -49,7 +49,11 @@ class BuildService:
                 all_transcripts[pt.id] = transcript
 
         if not all_data:
-            raise ValueError("No extracted data found. Run extraction first.")
+            from sift.errors import ExtractionError
+            raise ExtractionError(
+                "No extracted data found. Run extraction first.",
+                session_name=session_name,
+            )
 
         generated = []
 
@@ -117,7 +121,11 @@ class BuildService:
                 session_data[pt.name] = phase_bundle
 
         if not session_data:
-            raise ValueError("No data to summarize.")
+            from sift.errors import ExtractionError
+            raise ExtractionError(
+                "No data to summarize.",
+                session_name=session_name,
+            )
 
         from sift.engine import generate_summary
         summary = generate_summary(session_data, tmpl.name)

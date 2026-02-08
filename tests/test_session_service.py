@@ -1,6 +1,7 @@
 """Tests for SessionService."""
 import pytest
 from sift.core.session_service import SessionService
+from sift.errors import TemplateNotFoundError, SessionNotFoundError
 
 
 class TestSessionServiceCreate:
@@ -26,7 +27,7 @@ class TestSessionServiceCreate:
 
     def test_create_session_template_not_found(self):
         svc = SessionService()
-        with pytest.raises(FileNotFoundError, match="not found"):
+        with pytest.raises(TemplateNotFoundError):
             svc.create_session("nonexistent-template")
 
     def test_create_session_duplicate_name(self, sample_template_path):
@@ -92,7 +93,7 @@ class TestSessionServiceStatus:
 
     def test_get_status_not_found(self):
         svc = SessionService()
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(SessionNotFoundError):
             svc.get_session_status("nonexistent")
 
     def test_next_action_is_capture(self, sample_session):

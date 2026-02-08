@@ -6,6 +6,7 @@ from rich.panel import Panel
 from sift.ui import console, ICONS, pipeline_view, format_next_step
 from sift.core.session_service import SessionService
 from sift.completions import complete_session_name, complete_template_name
+from sift.error_handler import handle_errors
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -13,21 +14,18 @@ _svc = SessionService()
 
 
 @app.command("create")
+@handle_errors
 def create(
     template: str = typer.Argument(..., help="Template name or path", autocompletion=complete_template_name),
     name: str = typer.Option(None, "--name", "-n", help="Session name"),
 ):
     """Create a new session from a template (use '+' to combine: discovery-call+workflow-extraction)."""
-    try:
-        detail = _svc.create_session(template, name)
-    except (FileNotFoundError, ValueError) as e:
-        console.print(f"[red]{e}[/red]")
-        raise typer.Exit(1)
-
+    detail = _svc.create_session(template, name)
     _render_session_created(detail)
 
 
 @app.command("list")
+@handle_errors
 def list_sessions():
     """List all sessions."""
     sessions = _svc.list_sessions()
@@ -67,31 +65,23 @@ def list_sessions():
 
 
 @app.command("status")
+@handle_errors
 def show_status(
     session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
 ):
     """Show detailed session status."""
-    try:
-        detail = _svc.get_session_status(session)
-    except FileNotFoundError:
-        console.print(f"[red]Session '{session}' not found[/red]")
-        raise typer.Exit(1)
-
+    detail = _svc.get_session_status(session)
     _render_session_status(detail, session)
 
 
 @app.command("export")
+@handle_errors
 def export_session(
     session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
     output: Path = typer.Option(".", "--output", "-o", help="Output directory"),
 ):
     """Export all session data as a single YAML."""
-    try:
-        result = _svc.export_session(session, output)
-    except FileNotFoundError:
-        console.print(f"[red]Session '{session}' not found[/red]")
-        raise typer.Exit(1)
-
+    result = _svc.export_session(session, output)
     console.print(f"[green]Exported to {result.output_path}[/green]")
 
 

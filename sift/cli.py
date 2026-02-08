@@ -18,13 +18,14 @@ app = typer.Typer(
 )
 
 # Import subcommands
-from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd, config_cmd
+from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd, config_cmd, doctor_cmd
 
 app.add_typer(template_cmd.app, name="template", help="Manage session templates", rich_help_panel="Advanced")
 app.add_typer(session_cmd.app, name="session", help="Manage sessions", rich_help_panel="Advanced")
 app.add_typer(phase_cmd.app, name="phase", help="Capture & process phase data", rich_help_panel="Advanced")
 app.add_typer(build_cmd.app, name="build", help="Generate outputs from sessions", rich_help_panel="Advanced")
 app.add_typer(config_cmd.app, name="config", help="Manage configuration", rich_help_panel="Advanced")
+app.add_typer(doctor_cmd.app, name="doctor", help="Check environment & diagnostics", rich_help_panel="Info")
 
 
 @app.callback()
@@ -51,6 +52,7 @@ def main_callback(
 
     if provider:
         from sift.providers import get_provider
+        from sift.errors import SiftError
         try:
             p = get_provider(provider)
             if not p.is_available():
@@ -59,7 +61,7 @@ def main_callback(
                 console.print(f"[red]Provider '{provider}' requires {env_var} to be set.[/red]")
                 raise typer.Exit(1)
             console.print(f"[dim]Using {provider} ({p.model})[/dim]")
-        except ValueError as e:
+        except SiftError as e:
             console.print(f"[red]{e}[/red]")
             raise typer.Exit(1)
 

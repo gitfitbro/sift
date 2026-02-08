@@ -11,9 +11,10 @@ from sift.providers import get_provider
 logger = logging.getLogger("sift.engine")
 
 
-class NoProviderError(Exception):
-    """Raised when no AI provider is available for an operation."""
-    pass
+from sift.errors import ProviderUnavailableError
+
+# Backward-compatible alias
+NoProviderError = ProviderUnavailableError
 
 
 def transcribe_audio(audio_path: Path) -> str:
@@ -50,7 +51,7 @@ def transcribe_audio(audio_path: Path) -> str:
                 "%s transcription not available. Trying fallbacks...",
                 provider.name,
             )
-    except ValueError:
+    except ProviderUnavailableError:
         pass  # No provider configured
 
     # Try local whisper
@@ -58,11 +59,11 @@ def transcribe_audio(audio_path: Path) -> str:
         return _transcribe_with_whisper(mp3_path)
 
     # No automated option available
-    raise NoProviderError(
+    raise ProviderUnavailableError(
         "No transcription method available. Options:\n"
         "  1. Set AI_PROVIDER and API key in .env\n"
         "  2. Install whisper: pip install openai-whisper\n"
-        "  3. Paste the transcript manually"
+        "  3. Paste the transcript manually",
     )
 
 
@@ -104,15 +105,15 @@ def extract_structured_data(
         Dict with extraction field IDs as keys and extracted data as values
 
     Raises:
-        NoProviderError: If no AI provider is available.
+        ProviderUnavailableError: If no AI provider is available.
     """
     try:
         provider = get_provider()
         if not provider.is_available():
-            raise ValueError("not available")
-    except ValueError:
-        raise NoProviderError(
-            "No AI provider configured for extraction."
+            raise ProviderUnavailableError("Provider not available")
+    except ProviderUnavailableError:
+        raise ProviderUnavailableError(
+            "No AI provider configured for extraction.",
         )
 
     # Build the extraction prompt
@@ -194,8 +195,8 @@ def generate_summary(
     try:
         provider = get_provider()
         if not provider.is_available():
-            raise ValueError("not available")
-    except ValueError:
+            raise ProviderUnavailableError("Provider not available")
+    except ProviderUnavailableError:
         return _generate_summary_local(session_data)
 
     data_yaml = yaml.dump(session_data, default_flow_style=False, sort_keys=False)

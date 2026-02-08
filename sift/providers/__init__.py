@@ -32,15 +32,19 @@ def get_provider(name: Optional[str] = None):
         An AI provider instance with chat() and transcribe() methods.
 
     Raises:
-        ValueError: If provider name is unknown or API key is not configured.
+        ProviderUnavailableError: If provider name is unknown.
     """
     global _active_provider
     _register_defaults()
 
     if name:
         if name not in PROVIDERS:
+            from sift.errors import ProviderUnavailableError
             available = ", ".join(PROVIDERS.keys())
-            raise ValueError(f"Unknown provider '{name}'. Available: {available}")
+            raise ProviderUnavailableError(
+                f"Unknown provider '{name}'. Available: {available}",
+                provider=name,
+            )
         _active_provider = PROVIDERS[name]()
         return _active_provider
 
