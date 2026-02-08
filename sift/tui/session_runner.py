@@ -235,6 +235,8 @@ class SessionRunnerScreen(Screen):
             self._do_capture_text(current_pt.id, event.content, append)
         elif event.mode == "file":
             self._do_capture_file(current_pt.id, event.content, append)
+        elif event.mode == "analyze":
+            self._do_analyze_capture(current_pt.id, event.content, append)
 
     @work(thread=True)
     def _do_capture_text(self, phase_id: str, text: str, append: bool = False) -> None:
@@ -261,6 +263,23 @@ class SessionRunnerScreen(Screen):
             label = "appended" if result.appended else "captured"
             self.app.call_from_thread(
                 self.notify, f"File {label} ({result.file_type})", severity="information"
+            )
+        except Exception as e:
+            self.app.call_from_thread(self.notify, str(e), severity="error")
+        self.app.call_from_thread(self._refresh_ui)
+
+    @work(thread=True)
+    def _do_analyze_capture(self, phase_id: str, project_path: str, append: bool = False) -> None:
+        """Run project analysis and capture as transcript in a worker thread."""
+        try:
+            from sift.core.analysis_service import AnalysisService
+
+            analysis_svc = AnalysisService()
+            analysis_svc.capture_analysis(
+                self.session_name, phase_id, Path(project_path), append=append
+            )
+            self.app.call_from_thread(
+                self.notify, "Project analysis captured", severity="information"
             )
         except Exception as e:
             self.app.call_from_thread(self.notify, str(e), severity="error")

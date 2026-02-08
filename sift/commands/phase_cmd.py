@@ -72,10 +72,36 @@ def capture_phase(
     ),
     file: Path = typer.Option(None, "--file", "-f", help="Upload audio/transcript/PDF file"),
     text: bool = typer.Option(False, "--text", "-t", help="Enter text directly"),
+    analyze: str = typer.Option(
+        None, "--analyze", help="Analyze a project directory and use output as transcript"
+    ),
     append: bool = typer.Option(False, "--append", "-a", help="Append to existing content"),
     replace: bool = typer.Option(False, "--replace", help="Replace existing content"),
 ):
-    """Capture audio, transcript, or PDF document for a session phase."""
+    """Capture audio, transcript, PDF document, or project analysis for a session phase."""
+    if analyze:
+        from sift.core.analysis_service import AnalysisService
+
+        provider = None
+        try:
+            from sift.providers import get_provider
+
+            provider = get_provider()
+            if not provider.is_available():
+                provider = None
+        except Exception:
+            pass
+
+        analysis_svc = AnalysisService()
+        with console.status("[bold cyan]Analyzing project...[/bold cyan]"):
+            analysis_svc.capture_analysis(
+                session, phase, Path(analyze).resolve(),
+                provider=provider, append=append,
+            )
+        console.print("[green]Project analysis captured as transcript[/green]")
+        format_next_step(f"sift phase extract {session} --phase {phase}")
+        return
+
     has_content = _phase_has_content(session, phase)
 
     # Determine append mode for direct flags (--file or --text)

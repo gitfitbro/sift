@@ -135,3 +135,13 @@ class ExportData:
 
     data: dict
     output_path: Path | None = None
+
+
+@dataclass
+class AnalysisSessionResult:
+    """Result of creating a session from project analysis."""
+
+    session_detail: SessionDetail
+    analysis_path: Path
+    populated_phases: list[str]
+    template_name: str

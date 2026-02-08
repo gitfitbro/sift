@@ -257,8 +257,11 @@ class ExtractionService:
                 field_count=0,
             )
 
-        # Gather context from previous phases
+        # Gather context from previous phases + project analysis
         context = self._gather_context(s, tmpl, phase_id)
+        analysis_context = self._load_analysis_context(s)
+        if analysis_context:
+            context = self._inject_analysis_context(context, analysis_context)
 
         # Run extraction
         extraction_fields = [{"id": e.id, "type": e.type, "prompt": e.prompt} for e in pt.extract]
@@ -386,3 +389,40 @@ class ExtractionService:
                     f"Data from '{prev_pt.name}':\n{yaml.dump(prev_data, default_flow_style=False)}"
                 )
         return "\n\n".join(context_parts) if context_parts else ""
+
+    def _load_analysis_context(self, session: Session) -> dict | None:
+        """Load stored project analysis context from the session directory."""
+        analysis_path = session.dir / "analysis.yaml"
+        if analysis_path.exists():
+            with open(analysis_path) as f:
+                return yaml.safe_load(f)
+        return None
+
+    def _inject_analysis_context(self, existing_context: str, analysis: dict) -> str:
+        """Prepend project analysis summary to extraction context."""
+        project_lines = [
+            f"Project context ({analysis.get('project_name', 'unknown')}):",
+        ]
+
+        languages = analysis.get("languages", {})
+        if languages:
+            lang_str = ", ".join(f"{k} ({v} files)" for k, v in languages.items())
+            project_lines.append(f"  Languages: {lang_str}")
+
+        frameworks = analysis.get("frameworks")
+        if frameworks:
+            project_lines.append(f"  Frameworks: {', '.join(frameworks)}")
+
+        entry_points = analysis.get("entry_points")
+        if entry_points:
+            project_lines.append(f"  Entry points: {', '.join(entry_points[:5])}")
+
+        arch = analysis.get("architecture_summary")
+        if arch:
+            project_lines.append(f"  Architecture: {arch[:300]}")
+
+        project_summary = "\n".join(project_lines)
+
+        if existing_context:
+            return f"{project_summary}\n\n{existing_context}"
+        return project_summary

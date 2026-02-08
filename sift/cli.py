@@ -163,10 +163,49 @@ def new(
         ..., help="Template name or path", autocompletion=complete_template_name
     ),
     name: str = typer.Option(None, "--name", "-n", help="Session name (auto-generated if omitted)"),
+    analyze_path: str = typer.Option(
+        None, "--analyze", "-a", help="Analyze a project and pre-populate matching phases"
+    ),
 ):
     """[bold cyan]Create[/bold cyan] a new session from a template."""
     banner()
-    session_cmd.create(template, name)
+    if analyze_path:
+        from pathlib import Path as P
+
+        from rich.panel import Panel
+
+        from sift.core.analysis_service import AnalysisService
+
+        provider = None
+        try:
+            from sift.providers import get_provider
+
+            provider = get_provider()
+            if not provider.is_available():
+                provider = None
+        except Exception:
+            pass
+
+        analysis_svc = AnalysisService()
+        with console.status("[bold cyan]Analyzing project and creating session...[/bold cyan]"):
+            result = analysis_svc.create_session_with_analysis(
+                template, P(analyze_path).resolve(), provider=provider, session_name=name
+            )
+
+        console.print(
+            Panel(
+                f"Session: [bold cyan]{result.session_detail.name}[/bold cyan]\n"
+                f"Pre-populated phases: {', '.join(result.populated_phases) or 'none'}\n"
+                f"Analysis stored for context injection.",
+                title="[bold green]Session Created with Analysis[/bold green]",
+                border_style="green",
+            )
+        )
+        from sift.ui import format_next_step
+
+        format_next_step(f"sift run {result.session_detail.name}")
+    else:
+        session_cmd.create(template, name)
 
 
 @app.command(rich_help_panel="Session Workflow")
@@ -252,6 +291,12 @@ def analyze(
     ),
     save_template: bool = typer.Option(
         False, "--save", "-s", help="Save generated template to templates directory"
+    ),
+    session: bool = typer.Option(
+        False, "--session", help="Create a session from analysis and open workspace"
+    ),
+    session_name: str = typer.Option(
+        None, "--name", "-n", help="Session name (used with --session)"
     ),
 ):
     """[bold cyan]Analyze[/bold cyan] a software project's structure and architecture."""
@@ -399,6 +444,37 @@ def analyze(
             with open(template_path, "w") as f:
                 yaml.dump(template_data, f, default_flow_style=False, sort_keys=False)
             console.print(f"\n[green]Template saved to:[/green] {template_path}")
+
+    # One-shot: create session from analysis
+    if session:
+        from sift.core.analysis_service import AnalysisService
+
+        analysis_svc = AnalysisService()
+        with console.status("[bold cyan]Creating session from analysis...[/bold cyan]"):
+            result = analysis_svc.analyze_and_create_session(
+                project_path, provider=provider, session_name=session_name
+            )
+
+        console.print(
+            Panel(
+                f"[bold]{result.template_name}[/bold]\n"
+                f"Session: [bold cyan]{result.session_detail.name}[/bold cyan]\n"
+                f"Pre-populated phases: {', '.join(result.populated_phases) or 'none'}",
+                title="[bold green]Session Created from Analysis[/bold green]",
+                border_style="green",
+            )
+        )
+
+        # Open workspace
+        try:
+            from sift.tui.app import SiftApp
+
+            tui = SiftApp(result.session_detail.name, mode="workspace")
+            tui.run()
+        except ImportError:
+            from sift.commands.workspace_cmd import open_workspace
+
+            open_workspace(result.session_detail.name)
 
 
 @app.command(rich_help_panel="Info")

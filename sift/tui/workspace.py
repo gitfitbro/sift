@@ -184,6 +184,8 @@ class WorkspaceScreen(Screen):
             self._do_add_text(phase_id, event.content)
         elif event.mode == "file":
             self._do_add_file(phase_id, event.content)
+        elif event.mode == "analyze":
+            self._do_analyze_capture(phase_id, event.content)
 
     @on(CaptureForm.Skipped)
     def handle_skip(self, event: CaptureForm.Skipped) -> None:
@@ -216,6 +218,23 @@ class WorkspaceScreen(Screen):
             label = "appended" if result.appended else "captured"
             self.app.call_from_thread(
                 self.notify, f"File {label} ({result.file_type})", severity="information"
+            )
+        except Exception as e:
+            self.app.call_from_thread(self.notify, str(e), severity="error")
+        self.app.call_from_thread(self._refresh_ui)
+
+    @work(thread=True)
+    def _do_analyze_capture(self, phase_id: str, project_path: str) -> None:
+        """Run project analysis and capture as transcript in a worker thread."""
+        try:
+            from sift.core.analysis_service import AnalysisService
+
+            analysis_svc = AnalysisService()
+            analysis_svc.capture_analysis(
+                self.session_name, phase_id, Path(project_path), append=True
+            )
+            self.app.call_from_thread(
+                self.notify, "Project analysis captured", severity="information"
             )
         except Exception as e:
             self.app.call_from_thread(self.notify, str(e), severity="error")
