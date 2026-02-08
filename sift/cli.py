@@ -398,6 +398,23 @@ def analyze(
             )
         console.print(cx_table)
 
+    # Show guidance when no action flags are passed
+    if not template and not session:
+        console.print()
+        console.print(
+            Panel(
+                f"[bold]sift analyze {path} --session[/bold]          "
+                "Create a session from this analysis\n"
+                f"[bold]sift analyze {path} --template --save[/bold]  "
+                "Generate and save a custom template\n"
+                f"[bold]sift new <template> --analyze {path}[/bold]   "
+                "Use an existing template with this project",
+                title="[bold cyan]What's next?[/bold cyan]",
+                border_style="cyan",
+                padding=(0, 2),
+            )
+        )
+
     # Template recommendation
     if template:
         console.print()
@@ -445,14 +462,14 @@ def analyze(
                 yaml.dump(template_data, f, default_flow_style=False, sort_keys=False)
             console.print(f"\n[green]Template saved to:[/green] {template_path}")
 
-    # One-shot: create session from analysis
+    # One-shot: create session from pre-computed analysis (avoids analyzing twice)
     if session:
         from sift.core.analysis_service import AnalysisService
 
         analysis_svc = AnalysisService()
         with console.status("[bold cyan]Creating session from analysis...[/bold cyan]"):
-            result = analysis_svc.analyze_and_create_session(
-                project_path, provider=provider, session_name=session_name
+            result = analysis_svc.create_session_from_structure(
+                structure, provider=provider, session_name=session_name
             )
 
         console.print(

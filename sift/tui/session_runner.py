@@ -38,6 +38,8 @@ class SessionRunnerScreen(Screen):
         self._template = None
         self._phases: list = []
         self._appending = False
+        self._analyzed_project_path: str | None = None
+        self._last_capture_mode: str = "text"
 
     def compose(self):
         yield Header()
@@ -69,6 +71,19 @@ class SessionRunnerScreen(Screen):
 
         self._template = self._session.get_template()
         self._phases = list(self._template.phases)
+
+        # Load cached project path from analysis.yaml if present
+        analysis_path = self._session.dir / "analysis.yaml"
+        if analysis_path.exists():
+            try:
+                import yaml
+
+                with open(analysis_path) as f:
+                    ctx = yaml.safe_load(f)
+                if ctx and ctx.get("root_path"):
+                    self._analyzed_project_path = ctx["root_path"]
+            except Exception:
+                pass
 
         # Find starting point
         if self.start_phase:
@@ -147,6 +162,10 @@ class SessionRunnerScreen(Screen):
 
         if status == "pending":
             capture_form.display = True
+            capture_form.mode = self._last_capture_mode
+            capture_form._update_mode_visibility()
+            if self._analyzed_project_path:
+                capture_form.set_analyze_path(self._analyzed_project_path)
             extract_btn.display = False
             add_more_btn.display = False
             next_btn.display = False
@@ -231,6 +250,8 @@ class SessionRunnerScreen(Screen):
         append = self._appending
         self._appending = False
 
+        self._last_capture_mode = event.mode
+
         if event.mode == "text":
             self._do_capture_text(current_pt.id, event.content, append)
         elif event.mode == "file":
@@ -278,6 +299,8 @@ class SessionRunnerScreen(Screen):
             analysis_svc.capture_analysis(
                 self.session_name, phase_id, Path(project_path), append=append
             )
+            # Cache the project path for subsequent phases
+            self._analyzed_project_path = project_path
             self.app.call_from_thread(
                 self.notify, "Project analysis captured", severity="information"
             )

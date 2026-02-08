@@ -112,3 +112,4 @@ Sift ships with these built-in templates:
 - **ghost-architecture** - Reverse-engineer undocumented system architecture
 - **last-mile-assessment** - Evaluate project readiness for launch
 - **workflow-extraction** - Document and optimize team workflows
+- **infra-workflow-mapping** - Map infrastructure, dev tooling, and deployment pipelines

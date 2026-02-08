@@ -5,44 +5,123 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/sirrele/sift/pkgs/container/sift)
 
-A domain-agnostic CLI for running structured sessions, capturing audio/transcripts, extracting structured data with AI, and generating configs.
+**Turn conversations into structured data.**
 
-**Use it for:** mentorship sessions, discovery calls, user interviews, workshops, or any conversation that needs structured outputs.
+You have discovery calls, interviews, architecture reviews, workflow walkthroughs -- conversations that produce decisions, requirements, and context. But that knowledge gets trapped in recordings, notes, and memory. Next week you are starting over, re-explaining the same things.
+
+SIFT gives you template-driven sessions that **capture** content, **extract** structured data with AI, and **generate** reusable outputs (YAML configs, markdown summaries, structured reports). The structured data persists across sessions and can feed into other tools.
+
+```
+Audio/Text/PDF  -->  Capture  -->  AI Extract  -->  Structured YAML + Markdown
+```
 
 ## Quick Start
 
 ```bash
-# Install
+# 1. Install
 pip install sift-cli[all]
 
-# Or from source
-git clone https://github.com/sirrele/sift.git && cd sift
-pip install -e ".[all]"
-
-# Enable AI features
+# 2. Set up an AI provider (needed for extraction)
 sift config set-key anthropic YOUR_API_KEY
 
-# List available templates
+# 3. See what templates are available
 sift template list
 
-# Create and run a session
-sift new workflow-extraction --name my-session
-sift run my-session
+# 4. Create and run a session
+sift new discovery-call --name my-first-session
+sift run my-first-session
 ```
 
-## How It Works
+The `run` command opens an interactive walkthrough. Each phase prompts you, captures your input (text, audio, or file), extracts structured data, and moves to the next phase. When all phases are done, it generates outputs.
 
-### The Pipeline
+## Templates
+
+Templates define what a session captures and extracts. SIFT ships with these:
+
+| Template | What it does | When to use it |
+|----------|-------------|---------------|
+| **discovery-call** | Captures client discovery conversations, extracts tools, pain points, desired outcomes | First call with a client or stakeholder |
+| **workflow-extraction** | Maps a complete business workflow from a practitioner | Someone describes how their process works |
+| **ghost-architecture** | Reverse-engineers undocumented system architecture | Auditing ad-hoc scripts, tribal knowledge |
+| **last-mile-assessment** | Evaluates project readiness for launch | Before shipping, assessing what is left |
+| **infra-workflow-mapping** | Maps infrastructure, dev tooling, and deployment pipelines | Engineering teams with IaC, sandboxes, CI/CD |
+
+Each template has **phases** (structured steps) with **extraction rules** (what AI pulls out). You can combine templates: `sift new discovery-call+workflow-extraction`.
+
+### Create your own
+
+```bash
+# Interactive builder
+sift template init
+
+# Or write YAML directly -- see templates/ directory for examples
 ```
-Audio/Text --> Transcribe --> Extract --> Build Outputs
+
+## Three Ways to Use SIFT
+
+### Path A: CLI
+
+The standard way. Install, run commands, get outputs.
+
+```bash
+sift new workflow-extraction --name team-review
+sift run team-review
+# Follow the interactive prompts...
+sift build generate team-review
 ```
 
-1. **Templates** define the structure of any session type (YAML files)
-2. **Sessions** capture data through phases (audio, text, PDF)
-3. **AI extraction** pulls structured data from transcripts
-4. **Outputs** generate configs, summaries, and reports
+### Path B: Agent / MCP (Claude Desktop or Claude Code)
 
-## Commands
+SIFT runs as an MCP server, so Claude can create sessions, capture content, and extract data directly.
+
+```bash
+# Install with MCP support
+pip install "sift-cli[mcp]"
+
+# Register with Claude Code
+claude mcp add sift -- sift-mcp
+
+# Or Claude Desktop -- add to config:
+# { "mcpServers": { "sift": { "command": "sift-mcp" } } }
+```
+
+Then in Claude: "Create a discovery call session and capture these notes..."
+
+See [SKILL.md](SKILL.md) for the full MCP tool reference.
+
+### Path C: OpenClawd (Slack, Discord, Telegram)
+
+SIFT integrates with [OpenClawd](https://openclawd.ai) as a conversational skill for messaging platforms.
+
+```bash
+# On your OpenClawd machine
+pip install sift-cli[all]
+sift config set-key anthropic YOUR_API_KEY
+```
+
+Then in Slack/Discord: `/sift new discovery-call`, `/sift capture context <your notes>`, `/sift extract context`.
+
+See [docs/openclawd-integration.md](docs/openclawd-integration.md) for setup and usage.
+
+## Project Analysis
+
+SIFT can analyze software projects and create sessions pre-populated with architecture data.
+
+```bash
+# Analyze a project
+sift analyze /path/to/project
+
+# Analyze and create a session in one step
+sift analyze /path/to/project --session
+
+# Generate a custom template recommendation
+sift analyze /path/to/project --template --save
+
+# Use an existing template with analysis data
+sift new infra-workflow-mapping --analyze /path/to/project
+```
+
+## Commands Reference
 
 ### Session Workflow
 | Command | Description |
@@ -63,19 +142,19 @@ Audio/Text --> Transcribe --> Extract --> Build Outputs
 | `sift build generate <session>` | Generate all outputs |
 | `sift build summary <session>` | Generate AI narrative summary |
 
+### Analysis
+| Command | Description |
+|---------|-------------|
+| `sift analyze <path>` | Analyze project structure |
+| `sift analyze <path> --session` | Analyze and create a session |
+| `sift analyze <path> --template --save` | Generate and save a template recommendation |
+
 ### Templates
 | Command | Description |
 |---------|-------------|
 | `sift template list` | List available templates |
 | `sift template show <name>` | Show template details |
 | `sift template init` | Create a new template interactively |
-
-### Analysis
-| Command | Description |
-|---------|-------------|
-| `sift analyze <path>` | Analyze project structure |
-| `sift analyze <path> --template` | Generate template recommendation |
-| `sift models` | List available AI models |
 
 ### Configuration
 | Command | Description |
@@ -85,6 +164,7 @@ Audio/Text --> Transcribe --> Extract --> Build Outputs
 | `sift config set-key <provider> <key>` | Store API key securely |
 | `sift doctor show` | Environment diagnostics |
 | `sift plugins` | List discovered plugins |
+| `sift models` | List available AI models |
 
 ### Data Management
 | Command | Description |
@@ -93,7 +173,6 @@ Audio/Text --> Transcribe --> Extract --> Build Outputs
 | `sift export template <name>` | Export template |
 | `sift import-data session <file>` | Import session archive |
 | `sift import-data template <file>` | Import template |
-| `sift telemetry status` | Telemetry opt-in status |
 
 ### Global Flags
 | Flag | Description |
@@ -106,25 +185,30 @@ Audio/Text --> Transcribe --> Extract --> Build Outputs
 
 ## AI Providers
 
-| Provider | Setup | Use Case |
+You need at least one provider configured for AI extraction to work.
+
+| Provider | Setup | Best for |
 |----------|-------|----------|
 | **Anthropic** (Claude) | `sift config set-key anthropic KEY` | Best quality extraction |
 | **Google Gemini** | `sift config set-key gemini KEY` | Alternative cloud provider |
-| **Ollama** (local) | `ollama serve` | Offline, no API key needed |
+| **Ollama** (local) | `ollama serve` | Offline use, no API key needed |
 
 ```bash
-# Switch providers
+# Switch providers per-command
 sift --provider ollama --model llama3.2 run my-session
+
+# Or set a default
 sift config set providers.default ollama
 ```
 
 ## Input Methods
 
-- **Upload audio:** `--file recording.mp3` (mp3, wav, webm, m4a, ogg, flac)
-- **Upload transcript:** `--file transcript.txt` (txt, md)
-- **Upload PDF:** `--file document.pdf` (auto-extracts text)
-- **Type directly:** `--text` flag for inline entry
+- **Audio:** `--file recording.mp3` (mp3, wav, webm, m4a, ogg, flac)
+- **Transcript:** `--file transcript.txt` (txt, md)
+- **PDF:** `--file document.pdf` (auto-extracts text)
+- **Text:** `--text` flag for inline entry
 - **Interactive:** prompts you when no flags provided
+- **Project analysis:** `--analyze /path` to analyze a codebase
 
 ## Installation
 
@@ -157,73 +241,13 @@ pip install sift-cli[all]         # Everything
 docker run -v $(pwd)/data:/data -e ANTHROPIC_API_KEY ghcr.io/sirrele/sift:latest ls
 ```
 
-Or with docker-compose:
-```bash
-docker compose run sift new workflow-extraction --name my-session
-```
-
-## Agent Integration
-
-### MCP Server (Claude Desktop / Claude Code)
-
-```bash
-# Claude Code
-claude mcp add sift -- sift-mcp
-
-# Claude Desktop - add to config:
-# { "mcpServers": { "sift": { "command": "sift-mcp" } } }
-```
-
-### Plugin System
+## Plugin System
 
 Third-party providers register via setuptools entry points:
 ```bash
 pip install sift-openai  # Hypothetical third-party provider
 sift plugins             # Shows all discovered plugins
 ```
-
-## Creating Custom Templates
-
-```bash
-# Interactive template builder
-sift template init
-
-# Or write YAML directly
-cat > templates/my-template.yaml << 'EOF'
-name: "My Custom Session"
-description: "What this template is for"
-
-phases:
-  - id: discovery
-    name: "Discovery Phase"
-    prompt: "Tell me about your situation."
-    capture:
-      - type: audio
-        required: true
-    extract:
-      - id: pain_points
-        type: list
-        prompt: "Extract all pain points mentioned"
-      - id: tools_used
-        type: list
-        prompt: "List all tools and systems mentioned"
-
-outputs:
-  - type: yaml
-    template: session-config
-  - type: markdown
-    template: session-summary
-EOF
-```
-
-## Included Templates
-
-| Template | Phases | Use Case |
-|----------|--------|----------|
-| `workflow-extraction` | 4 | Map business workflows, identify gaps |
-| `ghost-architecture` | 3 | Audit ad-hoc scripts and automations |
-| `discovery-call` | 4 | Structure client discovery conversations |
-| `last-mile-assessment` | 4 | Assess last-mile delivery decisions |
 
 ## Requirements
 
