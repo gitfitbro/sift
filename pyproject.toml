@@ -23,6 +23,7 @@ gemini = ["google-genai>=1.0.0"]
 pdf = ["pdfplumber>=0.10.0", "pypdf>=3.17.0"]
 tui = ["textual>=0.50.0"]
 analyze = ["tree-sitter>=0.21.0", "tree-sitter-languages>=1.10.0"]
+mcp = ["mcp>=1.0.0"]
 all = [
     "anthropic>=0.18.0",
     "google-genai>=1.0.0",
@@ -31,10 +32,12 @@ all = [
     "textual>=0.50.0",
     "tree-sitter>=0.21.0",
     "tree-sitter-languages>=1.10.0",
+    "mcp>=1.0.0",
 ]
 
 [project.scripts]
 sift = "sift.cli:app"
+sift-mcp = "sift.mcp.server:main"
 
 [tool.setuptools.packages.find]
 include = ["sift*"]

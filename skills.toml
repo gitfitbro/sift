@@ -1,0 +1,25 @@
+[skill]
+name = "sift"
+version = "0.2.0"
+description = "Structured session capture & AI extraction"
+license = "MIT"
+
+[skill.install]
+command = "pip install sift-cli[all]"
+
+[skill.mcp]
+command = "sift-mcp"
+transport = "stdio"
+
+[skill.tools]
+list = [
+    "sift_list_templates",
+    "sift_create_session",
+    "sift_list_sessions",
+    "sift_session_status",
+    "sift_capture_text",
+    "sift_extract_phase",
+    "sift_build_outputs",
+    "sift_analyze_project",
+    "sift_export_session",
+]
