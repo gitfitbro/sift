@@ -8,8 +8,12 @@ from rich.prompt import Prompt, Confirm
 from rich.text import Text
 from sift.ui import console, ICONS, pipeline_view, section_divider, format_next_step
 from sift.models import ensure_dirs, Session
-from sift.commands import phase_cmd, build_cmd
-from sift import engine
+from sift.core.extraction_service import ExtractionService
+from sift.core.build_service import BuildService
+
+
+_extraction_svc = ExtractionService()
+_build_svc = BuildService()
 
 
 def _build_phase_list(session: Session, template) -> list[dict]:
@@ -170,7 +174,6 @@ def _action_re_extract(session_name: str, session: Session, template):
     """Re-run AI extraction on a phase."""
     console.print("\n  [bold]Re-Extract Phase[/bold]\n")
 
-    # Only show phases that have transcripts
     phase_id = _phase_picker(
         session, template,
         filter_status=["transcribed", "extracted", "complete"],
@@ -211,13 +214,9 @@ def _action_re_extract(session_name: str, session: Session, template):
 
         new_text = "\n".join(lines)
         if new_text.strip():
-            transcript = new_text
-            # Save the new transcript
-            transcript_path = session.phase_dir(phase_id) / "transcript.txt"
-            transcript_path.write_text(transcript)
-            console.print(f"  [green]Transcript updated ({len(transcript)} chars)[/green]")
-        else:
-            console.print("  [dim]No text entered. Keeping original transcript.[/dim]")
+            # Save the new transcript via capture_text
+            _extraction_svc.capture_text(session_name, phase_id, new_text)
+            console.print(f"  [green]Transcript updated ({len(new_text)} chars)[/green]")
 
     # Show existing extraction for comparison
     old_extracted = session.get_extracted(phase_id)
@@ -225,44 +224,28 @@ def _action_re_extract(session_name: str, session: Session, template):
     if not Confirm.ask("  Run extraction now?", default=True):
         return
 
-    # Run extraction (same logic as phase_cmd.extract_phase)
     if not pt.extract:
         console.print(f"  [yellow]{pt.name} has no extraction fields defined.[/yellow]")
         return
 
-    # Gather context from previous phases
-    context_parts = []
-    for prev_pt in template.phases:
-        if prev_pt.id == phase_id:
-            break
-        prev_data = session.get_extracted(prev_pt.id)
-        if prev_data:
-            context_parts.append(f"Data from '{prev_pt.name}':\n{yaml.dump(prev_data, default_flow_style=False)}")
-    context = "\n\n".join(context_parts) if context_parts else ""
-
-    extraction_fields = [{"id": e.id, "type": e.type, "prompt": e.prompt} for e in pt.extract]
-
-    with console.status(f"[bold]Extracting {len(extraction_fields)} fields...[/bold]"):
-        extracted = engine.extract_structured_data(
-            transcript=transcript,
-            extraction_fields=extraction_fields,
-            phase_name=pt.name,
-            context=context,
-        )
+    # Run extraction via service
+    try:
+        with console.status(f"[bold]Extracting {len(pt.extract)} fields...[/bold]"):
+            result = _extraction_svc.extract_phase(session_name, phase_id)
+    except Exception as e:
+        console.print(f"  [red]Extraction error: {e}[/red]")
+        return
 
     # Show results
     console.print()
-    _show_extraction_table(extracted, f"{pt.name} (new)")
+    _show_extraction_table(result.fields, f"{pt.name} (new)")
 
     if old_extracted:
-        # Show what changed
         changes = []
-        for key in set(list(extracted.keys()) + list(old_extracted.keys())):
+        for key in set(list(result.fields.keys()) + list(old_extracted.keys())):
             if key.startswith("_"):
                 continue
-            old_val = old_extracted.get(key)
-            new_val = extracted.get(key)
-            if old_val != new_val:
+            if old_extracted.get(key) != result.fields.get(key):
                 changes.append(key)
 
         if changes:
@@ -270,28 +253,11 @@ def _action_re_extract(session_name: str, session: Session, template):
         else:
             console.print("\n  [dim]No changes from previous extraction.[/dim]")
 
-    # Confirm save
-    if Confirm.ask("  Save new extraction?", default=True):
-        dest = session.phase_dir(phase_id) / "extracted.yaml"
-        with open(dest, "w") as f:
-            yaml.dump(extracted, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
-
-        ps = session.phases[phase_id]
-        ps.extracted_file = dest.name
-        ps.status = "extracted"
-        from datetime import datetime
-        ps.extracted_at = datetime.now().isoformat()
-        session.save()
-        console.print("  [green]Extraction saved.[/green]")
-    else:
-        console.print("  [dim]Discarded.[/dim]")
-
 
 def _action_refine(session: Session, template):
     """Edit specific extracted field values."""
     console.print("\n  [bold]Refine Extracted Data[/bold]\n")
 
-    # Only show phases with extracted data
     phase_id = _phase_picker(
         session, template,
         filter_status=["extracted", "complete"],
@@ -402,16 +368,21 @@ def _action_rebuild(session_name: str, session: Session):
     console.print("\n  [bold]Rebuild Outputs[/bold]\n")
 
     try:
-        build_cmd.generate(session_name, "all")
-    except SystemExit:
-        pass
+        result = _build_svc.generate_outputs(session_name, "all")
+        for label, path in result.generated_files:
+            console.print(f"  [bold]{label}[/bold]: {path}")
+    except (FileNotFoundError, ValueError) as e:
+        console.print(f"  [red]{e}[/red]")
 
     console.print()
     if Confirm.ask("  Generate AI summary?", default=True):
         try:
-            build_cmd.ai_summary(session_name)
-        except SystemExit:
-            pass
+            with console.status("[bold]Generating AI summary...[/bold]"):
+                summary, path = _build_svc.generate_summary(session_name)
+            console.print(Panel(summary[:500] + "..." if len(summary) > 500 else summary, title="AI Summary", border_style="green"))
+            console.print(f"  [dim]Saved to: {path}[/dim]")
+        except (FileNotFoundError, ValueError) as e:
+            console.print(f"  [red]{e}[/red]")
 
     console.print("\n  [green]Rebuild complete.[/green]")
 

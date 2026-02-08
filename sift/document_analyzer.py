@@ -1,11 +1,13 @@
 """AI-powered document analysis for multi-phase content detection and routing."""
 from __future__ import annotations
+import logging
 import re
 import yaml
 from dataclasses import dataclass
 from typing import Optional
-from sift.ui import console
 from sift.providers import get_provider
+
+logger = logging.getLogger("sift.document_analyzer")
 
 
 @dataclass
@@ -39,7 +41,7 @@ def analyze_document_for_phases(
         if not provider.is_available():
             raise ValueError("not available")
     except ValueError:
-        console.print("[yellow]No AI provider configured. Cannot analyze document.[/yellow]")
+        logger.warning("No AI provider configured. Cannot analyze document.")
         return []
 
     # Build phase descriptions for the prompt
@@ -103,12 +105,12 @@ unmatched_pages: "N-M"
 
 Only include phases that have actual matching content. Omit phases with no match."""
 
-    console.print(f"[dim]Analyzing document with {provider.name} ({provider.model})...[/dim]")
+    logger.info("Analyzing document with %s (%s)...", provider.name, provider.model)
 
     try:
         response_text = provider.chat(system_prompt, user_prompt, max_tokens=4000).strip()
     except (RuntimeError, Exception) as e:
-        console.print(f"[red]Provider error: {e}[/red]")
+        logger.error("Provider error during document analysis: %s", e)
         return []
 
     # Clean up response
@@ -121,7 +123,7 @@ Only include phases that have actual matching content. Omit phases with no match
     try:
         result = yaml.safe_load(response_text)
     except yaml.YAMLError:
-        console.print("[dim]Fixing YAML formatting...[/dim]")
+        logger.info("Fixing YAML formatting...")
         try:
             fix_prompt = (
                 "The following YAML has syntax errors. Fix it and return ONLY valid YAML:\n\n"
@@ -134,7 +136,7 @@ Only include phases that have actual matching content. Omit phases with no match
                 fixed_text = "\n".join(lines)
             result = yaml.safe_load(fixed_text)
         except (yaml.YAMLError, Exception):
-            console.print("[yellow]Could not parse analysis response.[/yellow]")
+            logger.warning("Could not parse analysis response.")
             return []
 
     if not isinstance(result, dict) or "phases" not in result:

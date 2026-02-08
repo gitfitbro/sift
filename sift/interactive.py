@@ -7,7 +7,11 @@ from rich.text import Text
 from rich.prompt import Prompt, Confirm
 from sift.ui import console, ICONS, pipeline_view, step_header, section_divider, format_next_step
 from sift.models import ensure_dirs, Session
-from sift.commands import phase_cmd, build_cmd
+from sift.core.extraction_service import ExtractionService
+from sift.core.build_service import BuildService
+
+_extraction_svc = ExtractionService()
+_build_svc = BuildService()
 
 
 def _build_phase_list(session: Session, template) -> list[dict]:
@@ -118,7 +122,6 @@ def _show_completion_summary(session: Session, template):
         status = ps.status if ps else "pending"
         icon = ICONS.get(status, ICONS["pending"])
 
-        # Count extracted fields
         extracted = session.get_extracted(pt.id)
         data_info = f"[green]{len(extracted)} fields[/green]" if extracted else "[dim]--[/dim]"
 
@@ -200,14 +203,26 @@ def run_interactive(session_name: str, start_phase: str = None):
                 file_path = Prompt.ask("  File path")
                 try:
                     from pathlib import Path
-                    phase_cmd.capture_phase(session_name, pt.id, Path(file_path), False)
-                except SystemExit:
-                    pass
+                    _extraction_svc.capture_file(session_name, pt.id, Path(file_path))
+                except Exception as e:
+                    console.print(f"  [red]{e}[/red]")
             elif action == "2":
-                try:
-                    phase_cmd.capture_phase(session_name, pt.id, None, True)
-                except SystemExit:
-                    pass
+                console.print("\n  [bold]Enter text.[/bold] [dim]Empty line + 'END' to finish.[/dim]\n")
+                lines = []
+                while True:
+                    try:
+                        line = input()
+                        if line.strip() == "END":
+                            break
+                        lines.append(line)
+                    except EOFError:
+                        break
+                text = "\n".join(lines)
+                if text.strip():
+                    try:
+                        _extraction_svc.capture_text(session_name, pt.id, text)
+                    except Exception as e:
+                        console.print(f"  [red]{e}[/red]")
             else:
                 required = any(c.required for c in pt.capture)
                 if required:
@@ -225,9 +240,10 @@ def run_interactive(session_name: str, start_phase: str = None):
             console.print()
             if Confirm.ask("  Transcribe audio now?", default=True):
                 try:
-                    phase_cmd.transcribe_phase(session_name, pt.id)
-                except SystemExit:
-                    pass
+                    with console.status("[bold]Transcribing...[/bold]"):
+                        _extraction_svc.transcribe_phase(session_name, pt.id)
+                except Exception as e:
+                    console.print(f"  [red]{e}[/red]")
                 s = Session.load(session_name)
                 ps = s.phases.get(pt.id)
 
@@ -236,9 +252,10 @@ def run_interactive(session_name: str, start_phase: str = None):
             console.print()
             if Confirm.ask("  Extract structured data now?", default=True):
                 try:
-                    phase_cmd.extract_phase(session_name, pt.id)
-                except SystemExit:
-                    pass
+                    with console.status(f"[bold]Extracting {len(pt.extract)} fields...[/bold]"):
+                        _extraction_svc.extract_phase(session_name, pt.id)
+                except Exception as e:
+                    console.print(f"  [red]{e}[/red]")
                 s = Session.load(session_name)
                 ps = s.phases.get(pt.id)
 
@@ -268,15 +285,19 @@ def run_interactive(session_name: str, start_phase: str = None):
     console.print()
     if Confirm.ask("Generate outputs?", default=True):
         try:
-            build_cmd.generate(session_name, "all")
-        except SystemExit:
-            pass
+            result = _build_svc.generate_outputs(session_name, "all")
+            for label, path in result.generated_files:
+                console.print(f"  [bold]{label}[/bold]: {path}")
+        except Exception as e:
+            console.print(f"  [red]{e}[/red]")
 
     if Confirm.ask("Generate AI summary?", default=True):
         try:
-            build_cmd.ai_summary(session_name)
-        except SystemExit:
-            pass
+            with console.status("[bold]Generating AI summary...[/bold]"):
+                summary, path = _build_svc.generate_summary(session_name)
+            console.print(f"  [dim]Saved to: {path}[/dim]")
+        except Exception as e:
+            console.print(f"  [red]{e}[/red]")
 
     console.print()
     console.print(Panel(

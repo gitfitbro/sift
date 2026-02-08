@@ -1,10 +1,12 @@
 """Anthropic (Claude) AI provider."""
 from __future__ import annotations
+import logging
 import os
 import base64
 from pathlib import Path
 from typing import Optional
-from sift.ui import console
+
+logger = logging.getLogger("sift.providers.anthropic")
 
 
 class AnthropicProvider:
@@ -38,7 +40,7 @@ class AnthropicProvider:
         """Transcribe audio using Claude's audio document input."""
         import anthropic
 
-        console.print(f"[dim]Transcribing with Claude ({self.model})...[/dim]")
+        logger.info("Transcribing with Claude (%s)...", self.model)
 
         audio_data = base64.standard_b64encode(audio_path.read_bytes()).decode("utf-8")
 

@@ -1,10 +1,11 @@
 """Google Gemini AI provider."""
 from __future__ import annotations
+import logging
 import os
 from pathlib import Path
 from typing import Optional
-from sift.ui import console
 
+logger = logging.getLogger("sift.providers.gemini")
 
 # Available Gemini models for easy reference
 GEMINI_MODELS = {
@@ -90,7 +91,7 @@ class GeminiProvider:
             genai = _import_genai()
 
             client = genai.Client(api_key=self.api_key)
-            console.print(f"[dim]Transcribing with Gemini ({self.model})...[/dim]")
+            logger.info("Transcribing with Gemini (%s)...", self.model)
 
             audio_file = client.files.upload(file=audio_path)
             response = client.models.generate_content(
@@ -105,8 +106,8 @@ class GeminiProvider:
             )
             return response.text
         except ImportError as e:
-            console.print(f"[red]{e}[/red]")
+            logger.error("Gemini import error: %s", e)
             return None
         except Exception as e:
-            console.print(f"[yellow]Gemini transcription failed: {e}[/yellow]")
+            logger.warning("Gemini transcription failed: %s", e)
             return None

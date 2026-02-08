@@ -1,12 +1,19 @@
 """AI engine for transcription and structured extraction."""
 from __future__ import annotations
+import logging
 import os
 import yaml
 import subprocess
 from pathlib import Path
 from typing import Optional
-from sift.ui import console
 from sift.providers import get_provider
+
+logger = logging.getLogger("sift.engine")
+
+
+class NoProviderError(Exception):
+    """Raised when no AI provider is available for an operation."""
+    pass
 
 
 def transcribe_audio(audio_path: Path) -> str:
@@ -16,7 +23,7 @@ def transcribe_audio(audio_path: Path) -> str:
     Strategy:
     1. If active AI provider supports audio, use it
     2. Fall back to local whisper if installed
-    3. Fall back to prompting user to paste transcript
+    3. Raise NoProviderError (caller handles manual fallback)
     """
     if not audio_path.exists():
         raise FileNotFoundError(f"Audio file not found: {audio_path}")
@@ -24,7 +31,7 @@ def transcribe_audio(audio_path: Path) -> str:
     # Ensure we have a compatible format (convert to mp3 if needed)
     mp3_path = audio_path.with_suffix(".mp3")
     if audio_path.suffix != ".mp3":
-        console.print(f"[dim]Converting {audio_path.suffix} to mp3...[/dim]")
+        logger.info("Converting %s to mp3...", audio_path.suffix)
         subprocess.run(
             ["ffmpeg", "-i", str(audio_path), "-q:a", "2", str(mp3_path), "-y"],
             capture_output=True,
@@ -39,7 +46,10 @@ def transcribe_audio(audio_path: Path) -> str:
             result = provider.transcribe(mp3_path)
             if result is not None:
                 return result
-            console.print(f"[yellow]{provider.name} transcription not available. Trying fallbacks...[/yellow]")
+            logger.warning(
+                "%s transcription not available. Trying fallbacks...",
+                provider.name,
+            )
     except ValueError:
         pass  # No provider configured
 
@@ -47,16 +57,13 @@ def transcribe_audio(audio_path: Path) -> str:
     if _whisper_available():
         return _transcribe_with_whisper(mp3_path)
 
-    # Fall back to manual
-    console.print("[yellow]No transcription API configured.[/yellow]")
-    console.print("Options:")
-    console.print("  1. Set AI_PROVIDER and API key in .env")
-    console.print("  2. Install whisper: pip install openai-whisper")
-    console.print("  3. Paste the transcript manually below")
-    console.print()
-
-    text = console.input("[bold]Paste transcript (Ctrl+D when done):[/bold]\n")
-    return text
+    # No automated option available
+    raise NoProviderError(
+        "No transcription method available. Options:\n"
+        "  1. Set AI_PROVIDER and API key in .env\n"
+        "  2. Install whisper: pip install openai-whisper\n"
+        "  3. Paste the transcript manually"
+    )
 
 
 def _whisper_available() -> bool:
@@ -72,7 +79,7 @@ def _transcribe_with_whisper(audio_path: Path) -> str:
     """Transcribe using local whisper model."""
     import whisper
 
-    console.print("[dim]Transcribing with local Whisper model...[/dim]")
+    logger.info("Transcribing with local Whisper model...")
     model = whisper.load_model("base")
     result = model.transcribe(str(audio_path))
     return result["text"]
@@ -95,14 +102,18 @@ def extract_structured_data(
 
     Returns:
         Dict with extraction field IDs as keys and extracted data as values
+
+    Raises:
+        NoProviderError: If no AI provider is available.
     """
     try:
         provider = get_provider()
         if not provider.is_available():
             raise ValueError("not available")
     except ValueError:
-        console.print("[yellow]No AI provider configured. Falling back to manual extraction.[/yellow]")
-        return _manual_extraction(extraction_fields)
+        raise NoProviderError(
+            "No AI provider configured for extraction."
+        )
 
     # Build the extraction prompt
     field_descriptions = []
@@ -139,20 +150,16 @@ For 'text' types, use plain strings. For 'boolean' types, use true/false.
 
 Return ONLY the YAML, no markdown fences, no preamble, no explanation."""
 
-    console.print(f"[dim]Extracting with {provider.name} ({provider.model})...[/dim]")
+    logger.info("Extracting with %s (%s)...", provider.name, provider.model)
 
     try:
         response_text = provider.chat(system_prompt, user_prompt, max_tokens=8000).strip()
     except (RuntimeError, Exception) as e:
-        console.print(f"[red]Provider error: {e}[/red]")
-        console.print("[yellow]Falling back to manual extraction.[/yellow]")
-        return _manual_extraction(extraction_fields)
+        logger.error("Provider error during extraction: %s", e)
+        raise
 
     # Clean up response (remove markdown fences if present)
-    if response_text.startswith("```"):
-        lines = response_text.split("\n")
-        lines = [l for l in lines if not l.strip().startswith("```")]
-        response_text = "\n".join(lines)
+    response_text = _strip_markdown_fences(response_text)
 
     try:
         extracted = yaml.safe_load(response_text)
@@ -161,7 +168,7 @@ Return ONLY the YAML, no markdown fences, no preamble, no explanation."""
         return extracted
     except yaml.YAMLError:
         # YAML parse failed — ask the provider to fix it
-        console.print("[dim]Fixing YAML formatting...[/dim]")
+        logger.info("Fixing YAML formatting...")
         try:
             fix_prompt = (
                 "The following YAML has syntax errors (likely unquoted colons in values). "
@@ -169,56 +176,14 @@ Return ONLY the YAML, no markdown fences, no preamble, no explanation."""
                 f"{response_text}"
             )
             fixed_text = provider.chat("", fix_prompt, max_tokens=8000).strip()
-            if fixed_text.startswith("```"):
-                lines = fixed_text.split("\n")
-                lines = [l for l in lines if not l.strip().startswith("```")]
-                fixed_text = "\n".join(lines)
+            fixed_text = _strip_markdown_fences(fixed_text)
             extracted = yaml.safe_load(fixed_text)
             if not isinstance(extracted, dict):
                 extracted = {"raw": extracted}
             return extracted
         except (yaml.YAMLError, Exception):
-            console.print("[yellow]Warning: Could not parse extraction as YAML. Saving raw response.[/yellow]")
+            logger.warning("Could not parse extraction as YAML. Saving raw response.")
             return {"_raw_response": response_text}
-
-
-def _manual_extraction(extraction_fields: list[dict]) -> dict:
-    """Fall back to manual data entry for extraction fields."""
-    result = {}
-    console.print("\n[bold]Manual extraction mode.[/bold] Enter data for each field:\n")
-
-    for f in extraction_fields:
-        console.print(f"[bold]{f['id']}[/bold] ({f['type']}): {f['prompt']}")
-
-        if f["type"] == "list":
-            console.print("[dim]Enter items one per line. Empty line to finish.[/dim]")
-            items = []
-            while True:
-                item = input("  > ").strip()
-                if not item:
-                    break
-                items.append(item)
-            result[f["id"]] = items
-        elif f["type"] == "boolean":
-            val = input("  (y/n): ").strip().lower()
-            result[f["id"]] = val in ("y", "yes", "true", "1")
-        elif f["type"] == "map":
-            console.print("[dim]Enter key: value pairs. Empty line to finish.[/dim]")
-            mapping = {}
-            while True:
-                line = input("  > ").strip()
-                if not line:
-                    break
-                if ":" in line:
-                    k, v = line.split(":", 1)
-                    mapping[k.strip()] = v.strip()
-            result[f["id"]] = mapping
-        else:
-            result[f["id"]] = input("  > ").strip()
-
-        console.print()
-
-    return result
 
 
 def generate_summary(
@@ -243,12 +208,12 @@ def generate_summary(
         "Write in prose, not bullet points. Be concise but thorough."
     )
 
-    console.print(f"[dim]Generating summary with {provider.name}...[/dim]")
+    logger.info("Generating summary with %s...", provider.name)
     try:
         return provider.chat("", user_prompt, max_tokens=4000)
     except (RuntimeError, Exception) as e:
-        console.print(f"[red]Provider error: {e}[/red]")
-        console.print("[yellow]Falling back to local summary.[/yellow]")
+        logger.error("Provider error during summary: %s", e)
+        logger.warning("Falling back to local summary.")
         return _generate_summary_local(session_data)
 
 
@@ -272,3 +237,12 @@ def _generate_summary_local(session_data: dict) -> str:
                 lines.append("")
         lines.append("")
     return "\n".join(lines)
+
+
+def _strip_markdown_fences(text: str) -> str:
+    """Remove markdown code fences from text."""
+    if text.startswith("```"):
+        lines = text.split("\n")
+        lines = [line for line in lines if not line.strip().startswith("```")]
+        text = "\n".join(lines)
+    return text
