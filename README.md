@@ -96,15 +96,30 @@ See [SKILL.md](SKILL.md) for the full MCP tool reference.
 
 SIFT integrates with [OpenClawd](https://openclawd.ai) as a conversational skill for messaging platforms.
 
+**1. Install SIFT on your OpenClawd machine:**
+
 ```bash
-# On your OpenClawd machine
 pip install sift-cli[all]
 sift config set-key anthropic YOUR_API_KEY
 ```
 
-Then in Slack/Discord: `/sift new discovery-call`, `/sift capture context <your notes>`, `/sift extract context`.
+**2. Register SIFT as an OpenClawd skill** by adding it to your OpenClawd skills config (usually `~/.openclawd/skills.toml` or your project's skill configuration):
 
-See [docs/openclawd-integration.md](docs/openclawd-integration.md) for setup and usage.
+```toml
+[skills.sift]
+package = "sift-cli"
+class = "sift.integrations.openclaw:SiftClawdSkill"
+```
+
+**3. Verify** in any connected messaging channel:
+
+```
+/sift templates
+```
+
+You should see the list of available templates. Then use commands like `/sift new discovery-call`, `/sift capture context <your notes>`, `/sift extract context`.
+
+See [docs/openclawd-integration.md](docs/openclawd-integration.md) for the full command reference and example workflows.
 
 ## Project Analysis
 
