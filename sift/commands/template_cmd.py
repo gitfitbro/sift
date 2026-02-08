@@ -5,6 +5,7 @@ from pathlib import Path
 from rich.table import Table
 from sift.ui import console
 from sift.core.template_service import TemplateService
+from sift.completions import complete_template_name
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -40,7 +41,7 @@ def list_templates():
 
 
 @app.command("show")
-def show_template(name: str = typer.Argument(..., help="Template name")):
+def show_template(name: str = typer.Argument(..., help="Template name", autocompletion=complete_template_name)):
     """Show details of a template."""
     try:
         detail = _svc.show_template(name)

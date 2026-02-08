@@ -6,6 +6,7 @@ from rich.table import Table as RichTable
 from sift.ui import console, ICONS, format_next_step
 from sift.core.extraction_service import ExtractionService
 from sift.pdf import PDF_ENGINE
+from sift.completions import complete_session_name, complete_phase_id
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -14,8 +15,8 @@ _svc = ExtractionService()
 
 @app.command("capture")
 def capture_phase(
-    session: str = typer.Argument(..., help="Session name"),
-    phase: str = typer.Option(..., "--phase", "-p", help="Phase ID"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
+    phase: str = typer.Option(..., "--phase", "-p", help="Phase ID", autocompletion=complete_phase_id),
     file: Path = typer.Option(None, "--file", "-f", help="Upload audio/transcript/PDF file"),
     text: bool = typer.Option(False, "--text", "-t", help="Enter text directly"),
 ):
@@ -95,8 +96,8 @@ def capture_phase(
 
 @app.command("transcribe")
 def transcribe_phase(
-    session: str = typer.Argument(..., help="Session name"),
-    phase: str = typer.Option(..., "--phase", "-p", help="Phase ID"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
+    phase: str = typer.Option(..., "--phase", "-p", help="Phase ID", autocompletion=complete_phase_id),
 ):
     """Transcribe audio for a session phase."""
     try:
@@ -122,8 +123,8 @@ def transcribe_phase(
 
 @app.command("extract")
 def extract_phase(
-    session: str = typer.Argument(..., help="Session name"),
-    phase: str = typer.Option(..., "--phase", "-p", help="Phase ID"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
+    phase: str = typer.Option(..., "--phase", "-p", help="Phase ID", autocompletion=complete_phase_id),
 ):
     """Extract structured data from a phase transcript."""
     try:

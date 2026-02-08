@@ -5,6 +5,7 @@ from rich.table import Table
 from rich.panel import Panel
 from sift.ui import console, ICONS, pipeline_view, format_next_step
 from sift.core.session_service import SessionService
+from sift.completions import complete_session_name, complete_template_name
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -13,7 +14,7 @@ _svc = SessionService()
 
 @app.command("create")
 def create(
-    template: str = typer.Argument(..., help="Template name or path"),
+    template: str = typer.Argument(..., help="Template name or path", autocompletion=complete_template_name),
     name: str = typer.Option(None, "--name", "-n", help="Session name"),
 ):
     """Create a new session from a template (use '+' to combine: discovery-call+workflow-extraction)."""
@@ -67,7 +68,7 @@ def list_sessions():
 
 @app.command("status")
 def show_status(
-    session: str = typer.Argument(..., help="Session name"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
 ):
     """Show detailed session status."""
     try:
@@ -81,7 +82,7 @@ def show_status(
 
 @app.command("export")
 def export_session(
-    session: str = typer.Argument(..., help="Session name"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
     output: Path = typer.Option(".", "--output", "-o", help="Output directory"),
 ):
     """Export all session data as a single YAML."""

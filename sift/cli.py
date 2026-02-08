@@ -5,6 +5,10 @@ capturing audio/transcripts, extracting structured data, and generating configs.
 """
 import typer
 from sift.ui import console, banner
+from sift.completions import (
+    complete_session_name, complete_template_name,
+    complete_phase_id, complete_provider_name,
+)
 
 app = typer.Typer(
     name="sift",
@@ -27,6 +31,7 @@ def main_callback(
     provider: str = typer.Option(
         None, "--provider", "-P",
         help="AI provider to use (anthropic, gemini). Overrides AI_PROVIDER env var.",
+        autocompletion=complete_provider_name,
     ),
     model: str = typer.Option(
         None, "--model", "-m",
@@ -61,7 +66,7 @@ def main_callback(
 # Top-level convenience commands
 @app.command(rich_help_panel="Session Workflow")
 def new(
-    template: str = typer.Argument(..., help="Template name or path"),
+    template: str = typer.Argument(..., help="Template name or path", autocompletion=complete_template_name),
     name: str = typer.Option(None, "--name", "-n", help="Session name (auto-generated if omitted)"),
 ):
     """[bold cyan]Create[/bold cyan] a new session from a template."""
@@ -70,8 +75,8 @@ def new(
 
 @app.command(rich_help_panel="Session Workflow")
 def run(
-    session: str = typer.Argument(..., help="Session name"),
-    phase: str = typer.Option(None, "--phase", "-p", help="Start at specific phase"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
+    phase: str = typer.Option(None, "--phase", "-p", help="Start at specific phase", autocompletion=complete_phase_id),
 ):
     """[bold cyan]Run[/bold cyan] an interactive session (guided walkthrough)."""
     banner()
@@ -80,7 +85,7 @@ def run(
 
 @app.command(rich_help_panel="Session Workflow")
 def status(
-    session: str = typer.Argument(..., help="Session name"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
 ):
     """Show session [bold]status[/bold] and progress."""
     session_cmd.show_status(session)
@@ -92,7 +97,7 @@ def ls():
 
 @app.command("open", rich_help_panel="Session Workflow")
 def open_session(
-    session: str = typer.Argument(..., help="Session name"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
 ):
     """[bold cyan]Open[/bold cyan] an interactive session workspace."""
     banner()
@@ -101,7 +106,7 @@ def open_session(
 
 @app.command("import", rich_help_panel="Session Workflow")
 def import_doc(
-    session: str = typer.Argument(..., help="Session name"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
     file: str = typer.Option(..., "--file", "-f", help="PDF or text file to import"),
 ):
     """[bold cyan]Import[/bold cyan] a multi-phase document into a session."""

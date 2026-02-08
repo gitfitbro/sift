@@ -3,6 +3,7 @@ import typer
 from rich.panel import Panel
 from sift.ui import console
 from sift.core.build_service import BuildService
+from sift.completions import complete_session_name, complete_format
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -11,8 +12,8 @@ _svc = BuildService()
 
 @app.command("generate")
 def generate(
-    session: str = typer.Argument(..., help="Session name"),
-    format: str = typer.Option("all", "--format", "-f", help="Output format: yaml, markdown, all"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
+    format: str = typer.Option("all", "--format", "-f", help="Output format: yaml, markdown, all", autocompletion=complete_format),
 ):
     """Generate outputs from a session's extracted data."""
     try:
@@ -33,7 +34,7 @@ def generate(
 
 @app.command("summary")
 def ai_summary(
-    session: str = typer.Argument(..., help="Session name"),
+    session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
 ):
     """Generate an AI-powered narrative summary of the session."""
     try:
