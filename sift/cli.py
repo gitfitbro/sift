@@ -136,6 +136,145 @@ def import_doc(
     from pathlib import Path
     import_cmd.import_document(session, Path(file))
 
+@app.command(rich_help_panel="Analysis")
+def analyze(
+    path: str = typer.Argument(".", help="Path to project directory"),
+    template: bool = typer.Option(False, "--template", "-t", help="Generate a session template recommendation"),
+    save_template: bool = typer.Option(False, "--save", "-s", help="Save generated template to templates directory"),
+):
+    """[bold cyan]Analyze[/bold cyan] a software project's structure and architecture."""
+    from pathlib import Path as P
+    from rich.table import Table
+    from rich.panel import Panel
+    from rich.tree import Tree
+
+    from sift.analyzers.project_analyzer import ProjectAnalyzer
+    from sift.analyzers.models import ProjectStructure
+
+    project_path = P(path).resolve()
+    if not project_path.is_dir():
+        console.print(f"[red]Not a directory: {project_path}[/red]")
+        raise typer.Exit(1)
+
+    # Optionally use AI provider
+    provider = None
+    if template:
+        try:
+            from sift.providers import get_provider
+            provider = get_provider()
+            if not provider.is_available():
+                provider = None
+        except Exception:
+            pass
+
+    with console.status("[bold cyan]Analyzing project...[/bold cyan]"):
+        analyzer = ProjectAnalyzer()
+        structure = analyzer.analyze(project_path, provider=provider)
+
+    # Display results
+    console.print()
+    console.print(Panel(
+        f"[bold]{structure.name}[/bold]\n"
+        f"{structure.total_files} files, {structure.total_lines:,} lines",
+        title="Project Analysis",
+        border_style="cyan",
+    ))
+
+    # Language breakdown
+    if structure.languages:
+        lang_table = Table(title="Languages", show_header=True, expand=False)
+        lang_table.add_column("Language", style="cyan")
+        lang_table.add_column("Files", justify="right")
+        for lang, count in sorted(structure.languages.items(), key=lambda x: -x[1]):
+            lang_table.add_row(lang, str(count))
+        console.print(lang_table)
+
+    # Frameworks
+    if structure.frameworks_detected:
+        console.print(f"\n[bold]Frameworks:[/bold] {', '.join(structure.frameworks_detected)}")
+
+    # Entry points
+    if structure.entry_points:
+        console.print(f"[bold]Entry points:[/bold] {', '.join(structure.entry_points[:5])}")
+
+    # Dependencies summary
+    if structure.dependencies:
+        console.print(f"[bold]Dependencies:[/bold] {len(structure.dependencies)} detected")
+
+    # Directory tree
+    if structure.directory_tree:
+        console.print(Panel(structure.directory_tree, title="Directory Structure", border_style="dim"))
+
+    # Architecture summary (AI-generated)
+    if structure.architecture_summary:
+        console.print(Panel(
+            structure.architecture_summary,
+            title="Architecture Summary (AI)",
+            border_style="green",
+        ))
+
+    # Top complexity files
+    top_complex = sorted(
+        [f for f in structure.file_analyses if f.complexity_score > 0],
+        key=lambda f: f.complexity_score,
+        reverse=True,
+    )[:5]
+    if top_complex:
+        cx_table = Table(title="Complexity Hotspots", show_header=True, expand=False)
+        cx_table.add_column("File", style="yellow")
+        cx_table.add_column("Lines", justify="right")
+        cx_table.add_column("Functions", justify="right")
+        cx_table.add_column("Complexity", justify="right", style="red")
+        for fa in top_complex:
+            try:
+                rel = str(fa.path.relative_to(project_path))
+            except ValueError:
+                rel = str(fa.path)
+            cx_table.add_row(rel, str(fa.line_count), str(len(fa.functions)), f"{fa.complexity_score:.1f}")
+        console.print(cx_table)
+
+    # Template recommendation
+    if template:
+        console.print()
+        rec = analyzer.recommend_template(structure, provider=provider)
+        console.print(Panel(
+            f"[bold]{rec.template_name}[/bold]\n{rec.description}\n\n"
+            f"[dim]{rec.rationale}[/dim]",
+            title="Template Recommendation",
+            border_style="magenta",
+        ))
+
+        phase_table = Table(title="Recommended Phases", show_header=True, expand=False)
+        phase_table.add_column("#", justify="right", style="dim")
+        phase_table.add_column("Phase", style="cyan")
+        phase_table.add_column("Prompt")
+        for i, phase in enumerate(rec.phases, 1):
+            phase_table.add_row(
+                str(i),
+                phase.get("name", phase.get("id", "?")),
+                (phase.get("prompt", "")[:80] + "...") if len(phase.get("prompt", "")) > 80 else phase.get("prompt", ""),
+            )
+        console.print(phase_table)
+
+        if save_template:
+            import yaml
+            from sift.models import TEMPLATES_DIR
+            TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
+            template_path = TEMPLATES_DIR / f"{rec.template_name}.yaml"
+            template_data = {
+                "name": rec.template_name,
+                "description": rec.description,
+                "phases": rec.phases,
+                "outputs": [
+                    {"type": "yaml", "template": "session-config"},
+                    {"type": "markdown", "template": "session-summary"},
+                ],
+            }
+            with open(template_path, "w") as f:
+                yaml.dump(template_data, f, default_flow_style=False, sort_keys=False)
+            console.print(f"\n[green]Template saved to:[/green] {template_path}")
+
+
 @app.command(rich_help_panel="Info")
 def models():
     """List available AI models for each provider."""
