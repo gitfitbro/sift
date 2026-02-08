@@ -1,6 +1,5 @@
 """AI provider registry and dispatch."""
 from __future__ import annotations
-import os
 from typing import Optional
 
 # Ensure .env is loaded before reading any env vars
@@ -48,8 +47,9 @@ def get_provider(name: Optional[str] = None):
     if _active_provider:
         return _active_provider
 
-    # Auto-detect from env
-    provider_name = os.environ.get("AI_PROVIDER", "anthropic")
+    # Auto-detect from config service
+    from sift.core.config_service import get_config_service
+    provider_name = get_config_service().get_provider_name()
     return get_provider(provider_name)
 
 

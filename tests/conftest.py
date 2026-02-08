@@ -34,6 +34,10 @@ def sift_home(tmp_path, monkeypatch):
     monkeypatch.setattr(session_svc, "SESSIONS_DIR", home / "sessions")
     monkeypatch.setattr(template_svc, "TEMPLATES_DIR", home / "templates")
 
+    # Reset the config service singleton so each test gets a fresh instance
+    from sift.core.config_service import reset_config_service
+    reset_config_service()
+
     return home
 
 

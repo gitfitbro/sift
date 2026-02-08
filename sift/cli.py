@@ -18,12 +18,13 @@ app = typer.Typer(
 )
 
 # Import subcommands
-from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd
+from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd, config_cmd
 
 app.add_typer(template_cmd.app, name="template", help="Manage session templates", rich_help_panel="Advanced")
 app.add_typer(session_cmd.app, name="session", help="Manage sessions", rich_help_panel="Advanced")
 app.add_typer(phase_cmd.app, name="phase", help="Capture & process phase data", rich_help_panel="Advanced")
 app.add_typer(build_cmd.app, name="build", help="Generate outputs from sessions", rich_help_panel="Advanced")
+app.add_typer(config_cmd.app, name="config", help="Manage configuration", rich_help_panel="Advanced")
 
 
 @app.callback()

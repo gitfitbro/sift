@@ -1,7 +1,6 @@
 """Anthropic (Claude) AI provider."""
 from __future__ import annotations
 import logging
-import os
 import base64
 from pathlib import Path
 from typing import Optional
@@ -13,8 +12,11 @@ class AnthropicProvider:
     name = "anthropic"
 
     def __init__(self):
-        self.api_key = os.environ.get("ANTHROPIC_API_KEY")
-        self.model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250514")
+        from sift.core.secrets import get_key
+        from sift.core.config_service import get_config_service
+
+        self.api_key = get_key("anthropic")
+        self.model = get_config_service().get_provider_model("anthropic")
 
     def is_available(self) -> bool:
         return self.api_key is not None

@@ -1,4 +1,9 @@
-"""Configuration and environment variable handling for sift."""
+"""Configuration and environment variable handling for sift.
+
+This module delegates to sift.core.config_service for layered config resolution
+and sift.core.secrets for API key management. It maintains backward-compatible
+exports used by existing code.
+"""
 import os
 from pathlib import Path
 from typing import Optional
@@ -6,17 +11,15 @@ from typing import Optional
 # Try to load .env file if it exists
 try:
     from dotenv import load_dotenv
-    # Look for .env in project directory
     project_root = Path(__file__).parent.parent
     env_file = project_root / ".env"
     if env_file.exists():
         load_dotenv(env_file)
 except ImportError:
-    # python-dotenv not installed, that's okay - use system env vars
     pass
 
 
-# Map provider names to their env var for API keys
+# Map provider names to their env var for API keys (kept for backward compat)
 PROVIDER_KEY_MAP = {
     "anthropic": "ANTHROPIC_API_KEY",
     "gemini": "GOOGLE_API_KEY",
@@ -24,55 +27,42 @@ PROVIDER_KEY_MAP = {
 
 
 class Config:
-    """Central configuration for sift."""
+    """Central configuration for sift.
+
+    Delegates to ConfigService for layered resolution and secrets module
+    for API key management.
+    """
 
     @staticmethod
     def get_ai_provider() -> str:
-        """Get the active AI provider name. Default: anthropic."""
-        return os.environ.get("AI_PROVIDER", "anthropic")
+        """Get the active AI provider name."""
+        from sift.core.config_service import get_config_service
+        return get_config_service().get_provider_name()
 
     @staticmethod
     def get_anthropic_api_key() -> Optional[str]:
-        """Get Anthropic API key from environment."""
-        return os.environ.get("ANTHROPIC_API_KEY")
+        """Get Anthropic API key."""
+        from sift.core.secrets import get_key
+        return get_key("anthropic")
 
     @staticmethod
     def get_google_api_key() -> Optional[str]:
-        """Get Google/Gemini API key from environment."""
-        return os.environ.get("GOOGLE_API_KEY")
+        """Get Google/Gemini API key."""
+        from sift.core.secrets import get_key
+        return get_key("gemini")
 
     @staticmethod
     def get_provider_api_key(provider: str = None) -> Optional[str]:
         """Get the API key for the specified or current provider."""
+        from sift.core.secrets import get_key
         provider = provider or Config.get_ai_provider()
-        env_var = PROVIDER_KEY_MAP.get(provider)
-        return os.environ.get(env_var) if env_var else None
+        return get_key(provider)
 
     @staticmethod
     def get_sift_home() -> Path:
-        """Get the base directory for all sift data.
-
-        Priority:
-        1. SIFT_HOME environment variable (if set)
-        2. Project-local directory (./data/)
-        3. Global home directory (~/.sift) - legacy fallback
-        """
-        # Check for explicit SIFT_HOME override
-        env_home = os.environ.get("SIFT_HOME")
-        if env_home:
-            return Path(env_home).expanduser()
-
-        # Default to project-local data directory
-        project_root = Path(__file__).parent.parent
-        project_data = project_root / "data"
-
-        # For backwards compatibility: if ~/.sift exists and project data doesn't, use ~/.sift
-        global_home = Path.home() / ".sift"
-        if global_home.exists() and not project_data.exists():
-            return global_home
-
-        # Otherwise use project-local (create if needed)
-        return project_data
+        """Get the base directory for all sift data."""
+        from sift.core.config_service import get_config_service
+        return get_config_service().get_data_dir()
 
     @staticmethod
     def require_api_key() -> str:
@@ -84,6 +74,8 @@ class Config:
             raise ValueError(
                 f"Provider '{provider}' requires {env_var} to be set.\n"
                 f"  export {env_var}=your-key-here\n\n"
+                "Or store it securely:\n"
+                f"  sift config set-key {provider} your-key-here\n\n"
                 "Or create a .env file in the project directory:\n"
                 "  cp .env.example .env\n"
                 "  # Edit .env and add your key"

@@ -1,7 +1,6 @@
 """Google Gemini AI provider."""
 from __future__ import annotations
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -40,8 +39,11 @@ class GeminiProvider:
     name = "gemini"
 
     def __init__(self):
-        self.api_key = os.environ.get("GOOGLE_API_KEY")
-        self.model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+        from sift.core.secrets import get_key
+        from sift.core.config_service import get_config_service
+
+        self.api_key = get_key("gemini")
+        self.model = get_config_service().get_provider_model("gemini")
 
     def is_available(self) -> bool:
         return self.api_key is not None
