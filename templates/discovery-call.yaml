@@ -3,7 +3,13 @@ description: "Capture and structure a client or stakeholder discovery conversati
 
 metadata:
   scenario: "product-discovery"
+  author: sift
   version: "1.0"
+  tags:
+    - discovery
+    - client
+    - requirements
+  license: MIT
 
 phases:
   - id: context

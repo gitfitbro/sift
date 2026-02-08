@@ -3,7 +3,13 @@ description: "Inventory and assess ad-hoc automations, scripts, and workarounds 
 
 metadata:
   scenario: "mentorship-ghost-architecture"
+  author: sift
   version: "1.0"
+  tags:
+    - architecture
+    - reverse-engineering
+    - system
+  license: MIT
 
 phases:
   - id: inventory

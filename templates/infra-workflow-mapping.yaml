@@ -6,7 +6,13 @@ description: >
 
 metadata:
   scenario: "infra-workflow-mapping"
+  author: sift
   version: "1.0"
+  tags:
+    - infrastructure
+    - cicd
+    - devops
+  license: MIT
   roles:
     practitioner: "The engineer describing their infrastructure and workflows"
     advisor: "The person facilitating the mapping session"

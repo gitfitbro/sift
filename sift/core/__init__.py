@@ -6,7 +6,7 @@ sift.cli, or typer. Consumer layers (CLI, TUI, MCP) handle presentation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -145,3 +145,32 @@ class AnalysisSessionResult:
     analysis_path: Path
     populated_phases: list[str]
     template_name: str
+
+
+@dataclass
+class MigrationResult:
+    """Result of a single migration operation."""
+
+    name: str
+    source_version: int
+    target_version: int
+    migrated: bool
+    dry_run: bool = False
+    changes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class MigrationSummary:
+    """Summary of a batch migration run."""
+
+    sessions: list[MigrationResult] = field(default_factory=list)
+    templates: list[MigrationResult] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+
+    @property
+    def total_migrated(self) -> int:
+        return sum(1 for r in self.sessions + self.templates if r.migrated)
+
+    @property
+    def total_skipped(self) -> int:
+        return sum(1 for r in self.sessions + self.templates if not r.migrated)

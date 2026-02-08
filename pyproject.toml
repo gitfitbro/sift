@@ -98,13 +98,40 @@ sift = ["locales/*.pot", "locales/*/LC_MESSAGES/*.mo"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: end-to-end integration tests (may be slower)",
+]
 
 [tool.mypy]
 python_version = "3.10"
-warn_return_any = false
+warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
-check_untyped_defs = false
+check_untyped_defs = true
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+    "sift.models",
+    "sift.errors",
+    "sift.core.session_service",
+    "sift.core.template_service",
+    "sift.core.extraction_service",
+    "sift.core.build_service",
+    "sift.core.migration_service",
+    "sift.core.export_service",
+]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "sift.core.config_service",
+    "sift.telemetry.*",
+    "sift.plugins",
+    "sift.tui.*",
+    "sift.commands.*",
+    "sift.cli",
+]
 disallow_untyped_defs = false
 
 [tool.ruff]

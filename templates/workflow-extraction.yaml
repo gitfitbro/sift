@@ -3,7 +3,13 @@ description: "Extract and document a complete business workflow from a practitio
 
 metadata:
   scenario: "mentorship-workflow-extraction"
+  author: sift
   version: "1.0"
+  tags:
+    - workflow
+    - process
+    - mapping
+  license: MIT
   roles:
     builder: "The practitioner describing their workflow"
     advisor: "The mentor guiding the extraction"

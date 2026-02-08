@@ -272,6 +272,200 @@ async def sift_export_session(session_name: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Template management tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def sift_create_template(
+    name: str,
+    description: str,
+    phases: list[dict],
+    outputs: list[dict] | None = None,
+    metadata: dict | None = None,
+) -> dict:
+    """Create a new sift session template.
+
+    Args:
+        name: Template name (e.g., "discovery-call").
+        description: What this template is for.
+        phases: List of phase definitions, each with id, name, prompt, capture, extract.
+        outputs: Optional output specs. Defaults to YAML + Markdown.
+        metadata: Optional metadata (author, version, tags, license).
+    """
+    from sift.core.template_service import TemplateService
+
+    svc = TemplateService()
+    try:
+        template_data = {
+            "name": name,
+            "description": description,
+            "phases": phases,
+            "outputs": outputs
+            or [
+                {"type": "yaml", "template": "session-config"},
+                {"type": "markdown", "template": "session-summary"},
+            ],
+            "metadata": metadata or {},
+        }
+        path = svc.create_template(template_data)
+        return {"status": "created", "path": str(path)}
+    except (ValueError, Exception) as e:
+        return {"status": "error", "error": str(e)}
+
+
+@mcp.tool()
+async def sift_search_templates(query: str) -> dict:
+    """Search templates by name, description, or tags.
+
+    Args:
+        query: Search string to match against templates.
+    """
+    from sift.core.template_service import TemplateService
+
+    svc = TemplateService()
+    results = svc.search_templates(query)
+    return {"templates": [_serialize(t) for t in results]}
+
+
+# ---------------------------------------------------------------------------
+# Configuration & diagnostics tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def sift_doctor() -> dict:
+    """Run diagnostic checks on the sift environment.
+
+    Returns structured results for Python version, data directories,
+    templates, providers, and optional dependencies.
+    """
+    import sys
+
+    checks = []
+
+    # Python version
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    py_ok = sys.version_info >= (3, 10)
+    checks.append({"check": "python_version", "ok": py_ok, "detail": py_ver})
+
+    # Data directories
+    from sift.models import SESSIONS_DIR, TEMPLATES_DIR
+
+    checks.append(
+        {"check": "templates_dir", "ok": TEMPLATES_DIR.exists(), "detail": str(TEMPLATES_DIR)}
+    )
+    checks.append(
+        {"check": "sessions_dir", "ok": SESSIONS_DIR.exists(), "detail": str(SESSIONS_DIR)}
+    )
+
+    # Template count
+    tmpl_count = 0
+    if TEMPLATES_DIR.exists():
+        tmpl_count = len(list(TEMPLATES_DIR.glob("*.yaml"))) + len(
+            list(TEMPLATES_DIR.glob("*.yml"))
+        )
+    checks.append(
+        {"check": "templates_installed", "ok": tmpl_count > 0, "detail": f"{tmpl_count} templates"}
+    )
+
+    # Provider keys
+    from sift.core.secrets import list_stored_providers
+
+    key_status = list_stored_providers()
+    for provider, status in key_status.items():
+        has_key = status in ("env", "keyring", "file", "no key needed")
+        checks.append({"check": f"provider_{provider}", "ok": has_key, "detail": status})
+
+    all_ok = all(c["ok"] for c in checks if not str(c["check"]).startswith("provider_"))
+    return {"status": "ok" if all_ok else "issues_found", "checks": checks}
+
+
+@mcp.tool()
+async def sift_get_config(key: str | None = None) -> dict:
+    """Get sift configuration values.
+
+    Args:
+        key: Optional specific config key (dotted notation). Returns all config if omitted.
+    """
+    from sift.core.config_service import get_config_service
+
+    svc = get_config_service()
+    try:
+        if key:
+            value = svc.get(key)
+            return {"status": "ok", "key": key, "value": value}
+        return {"status": "ok", "config": svc.show()}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+@mcp.tool()
+async def sift_set_config(key: str, value: str) -> dict:
+    """Set a sift configuration value.
+
+    Args:
+        key: Config key in dotted notation (e.g., "providers.default").
+        value: Value to set.
+    """
+    from sift.core.config_service import get_config_service
+
+    svc = get_config_service()
+    try:
+        # Parse value types (same logic as config_cmd set_value)
+        parsed_value: object
+        if value.lower() in ("true", "yes", "1"):
+            parsed_value = True
+        elif value.lower() in ("false", "no", "0"):
+            parsed_value = False
+        else:
+            try:
+                parsed_value = int(value)
+            except ValueError:
+                parsed_value = value
+
+        svc.set_global(key, parsed_value)
+        return {"status": "ok", "key": key, "value": parsed_value}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Migration tools
+# ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+async def sift_migrate(
+    session_name: str | None = None,
+    dry_run: bool = False,
+) -> dict:
+    """Run schema migrations on sessions and templates.
+
+    Args:
+        session_name: Optional specific session to migrate. Migrates all if omitted.
+        dry_run: If true, preview changes without applying them.
+    """
+    from sift.core.migration_service import MigrationService
+
+    svc = MigrationService()
+    try:
+        if session_name:
+            result = svc.migrate_session(session_name, dry_run=dry_run)
+            return {"status": "ok", "result": _serialize(result)}
+        summary = svc.migrate_all(dry_run=dry_run)
+        return {
+            "status": "ok",
+            "sessions": [_serialize(r) for r in summary.sessions],
+            "templates": [_serialize(r) for r in summary.templates],
+            "total_migrated": summary.total_migrated,
+            "total_skipped": summary.total_skipped,
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
