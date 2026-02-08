@@ -18,8 +18,11 @@ Audio/Text/PDF  -->  Capture  -->  AI Extract  -->  Structured YAML + Markdown
 ## Quick Start
 
 ```bash
-# 1. Install
-pip install sift-cli[all]
+# 1. Clone and install
+git clone https://github.com/sirrele/sift.git
+cd sift
+bash setup.sh
+source .venv/bin/activate
 
 # 2. Set up an AI provider (needed for extraction)
 sift config set-key anthropic YOUR_API_KEY
@@ -212,19 +215,42 @@ sift config set providers.default ollama
 
 ## Installation
 
+### From source (recommended)
+
+```bash
+git clone https://github.com/sirrele/sift.git
+cd sift
+bash setup.sh
+source .venv/bin/activate
+```
+
+The setup script creates a virtual environment, installs all dependencies, and copies templates.
+
+> **Debian/Ubuntu users:** If `setup.sh` fails with `ensurepip is not available`, install the venv package first:
+> ```bash
+> sudo apt install python3-venv
+> # For a specific Python version, e.g.:
+> # sudo apt install python3.12-venv
+> ```
+> Then re-run `bash setup.sh`.
+
 ### From PyPI
+
 ```bash
 pip install sift-cli[all]
 ```
 
-### From source
-```bash
-git clone https://github.com/sirrele/sift.git
-cd sift
-pip install -e ".[all]"
-```
+> **Note:** On modern Debian/Ubuntu (Python 3.12+), system pip is blocked by [PEP 668](https://peps.python.org/pep-0668/). Use a virtual environment instead:
+> ```bash
+> python3 -m venv .venv
+> source .venv/bin/activate
+> pip install sift-cli[all]
+> ```
 
 ### Optional dependency groups
+
+Install only the providers and features you need:
+
 ```bash
 pip install sift-cli[anthropic]   # Anthropic/Claude
 pip install sift-cli[gemini]      # Google Gemini
@@ -237,6 +263,7 @@ pip install sift-cli[all]         # Everything
 ```
 
 ### Docker
+
 ```bash
 docker run -v $(pwd)/data:/data -e ANTHROPIC_API_KEY ghcr.io/sirrele/sift:latest ls
 ```
