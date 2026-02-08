@@ -49,6 +49,17 @@ dev = [
 sift = "sift.cli:app"
 sift-mcp = "sift.mcp.server:main"
 
+[project.entry-points."sift.providers"]
+anthropic = "sift.providers.anthropic_provider:AnthropicProvider"
+gemini = "sift.providers.gemini_provider:GeminiProvider"
+ollama = "sift.providers.ollama_provider:OllamaProvider"
+
+[project.entry-points."sift.analyzers"]
+python_ast = "sift.analyzers.python_ast_analyzer:analyze_python_file"
+
+[project.entry-points."sift.output_formatters"]
+yaml = "sift.core.build_service:BuildService"
+
 [tool.setuptools.packages.find]
 include = ["sift*"]
 

@@ -29,8 +29,9 @@ def complete_phase_id(ctx, incomplete: str) -> list[str]:
 
 
 def complete_provider_name(incomplete: str) -> list[str]:
-    """Complete provider names."""
-    return [p for p in ["anthropic", "gemini", "ollama"] if p.startswith(incomplete)]
+    """Complete provider names (discovered via entry points)."""
+    from sift.providers import get_provider_names
+    return [p for p in get_provider_names() if p.startswith(incomplete)]
 
 
 def complete_format(incomplete: str) -> list[str]:

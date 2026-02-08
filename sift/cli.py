@@ -18,7 +18,7 @@ app = typer.Typer(
 )
 
 # Import subcommands
-from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd, config_cmd, doctor_cmd
+from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd, config_cmd, doctor_cmd, plugin_cmd
 
 app.add_typer(template_cmd.app, name="template", help="Manage session templates", rich_help_panel="Advanced")
 app.add_typer(session_cmd.app, name="session", help="Manage sessions", rich_help_panel="Advanced")
@@ -26,6 +26,7 @@ app.add_typer(phase_cmd.app, name="phase", help="Capture & process phase data", 
 app.add_typer(build_cmd.app, name="build", help="Generate outputs from sessions", rich_help_panel="Advanced")
 app.add_typer(config_cmd.app, name="config", help="Manage configuration", rich_help_panel="Advanced")
 app.add_typer(doctor_cmd.app, name="doctor", help="Check environment & diagnostics", rich_help_panel="Info")
+app.add_typer(plugin_cmd.app, name="plugins", help="List discovered plugins", rich_help_panel="Info")
 
 
 @app.callback()
@@ -50,7 +51,7 @@ def main_callback(
             "anthropic": "ANTHROPIC_MODEL",
             "ollama": "OLLAMA_MODEL",
         }
-        os.environ[model_env.get(provider_name, "ANTHROPIC_MODEL")] = model
+        os.environ[model_env.get(provider_name, f"{provider_name.upper()}_MODEL")] = model
 
     if provider:
         from sift.providers import get_provider
