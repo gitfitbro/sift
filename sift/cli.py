@@ -18,7 +18,7 @@ app = typer.Typer(
 )
 
 # Import subcommands
-from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd, config_cmd, doctor_cmd, plugin_cmd, export_cmd
+from sift.commands import template_cmd, session_cmd, phase_cmd, build_cmd, import_cmd, config_cmd, doctor_cmd, plugin_cmd, export_cmd, telemetry_cmd
 
 app.add_typer(template_cmd.app, name="template", help="Manage session templates", rich_help_panel="Advanced")
 app.add_typer(session_cmd.app, name="session", help="Manage sessions", rich_help_panel="Advanced")
@@ -29,6 +29,7 @@ app.add_typer(doctor_cmd.app, name="doctor", help="Check environment & diagnosti
 app.add_typer(plugin_cmd.app, name="plugins", help="List discovered plugins", rich_help_panel="Info")
 app.add_typer(export_cmd.app, name="export", help="Export sessions & templates", rich_help_panel="Data")
 app.add_typer(export_cmd.import_app, name="import-data", help="Import sessions & templates", rich_help_panel="Data")
+app.add_typer(telemetry_cmd.app, name="telemetry", help="Manage anonymous telemetry", rich_help_panel="Info")
 
 
 @app.callback()
@@ -42,8 +43,37 @@ def main_callback(
         None, "--model", "-m",
         help="AI model to use. Overrides GEMINI_MODEL / ANTHROPIC_MODEL env var.",
     ),
+    plain: bool = typer.Option(
+        False, "--plain",
+        help="Plain text output (no colors, no panels, ASCII). Auto-enabled when stdout is piped.",
+    ),
+    json_output: bool = typer.Option(
+        False, "--json",
+        help="Machine-readable JSON output.",
+    ),
+    verbose: int = typer.Option(
+        0, "--verbose", "-v",
+        help="Increase log verbosity (-v info, -vv debug).",
+        count=True,
+    ),
 ):
     """Structured session capture & AI extraction CLI."""
+    import logging
+    import sys
+
+    # Configure logging based on verbosity
+    if verbose > 0:
+        log_level = {1: logging.INFO, 2: logging.DEBUG}.get(min(verbose, 2), logging.DEBUG)
+        logging.basicConfig(level=log_level, format="%(name)s %(message)s")
+
+    # Auto-detect piped output
+    from sift.ui import set_plain_mode, set_json_mode
+    if plain or not sys.stdout.isatty():
+        set_plain_mode(True)
+    if json_output:
+        set_json_mode(True)
+        set_plain_mode(True)  # JSON mode implies plain
+
     # Set model env var before provider init so it picks it up
     if model:
         import os

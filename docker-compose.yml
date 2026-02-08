@@ -1,0 +1,23 @@
+services:
+  sift:
+    build: .
+    volumes:
+      - ./data:/data
+      - ./templates:/app/templates
+    environment:
+      - ANTHROPIC_API_KEY
+      - GOOGLE_API_KEY
+      - SIFT_HOME=/data
+    stdin_open: true
+    tty: true
+
+  sift-mcp:
+    build: .
+    entrypoint: ["sift-mcp"]
+    volumes:
+      - ./data:/data
+    environment:
+      - ANTHROPIC_API_KEY
+      - GOOGLE_API_KEY
+      - SIFT_HOME=/data
+    stdin_open: true

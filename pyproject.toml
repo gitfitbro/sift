@@ -4,11 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sift-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "Structured session capture & AI extraction CLI"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Utilities",
+]
 dependencies = [
     "typer>=0.9.0",
     "rich>=13.0.0",
@@ -19,6 +32,12 @@ dependencies = [
     "tomli-w>=1.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/sirrele/sift"
+Repository = "https://github.com/sirrele/sift"
+Issues = "https://github.com/sirrele/sift/issues"
+Changelog = "https://github.com/sirrele/sift/blob/main/CHANGELOG.md"
+
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.18.0"]
 gemini = ["google-genai>=1.0.0"]
@@ -28,6 +47,12 @@ tui = ["textual>=0.50.0"]
 analyze = ["tree-sitter>=0.21.0", "tree-sitter-languages>=1.10.0"]
 mcp = ["mcp>=1.0.0"]
 keyring = ["keyring>=24.0"]
+telemetry = [
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
+]
+i18n = ["babel>=2.14"]
 all = [
     "anthropic>=0.18.0",
     "google-genai>=1.0.0",
@@ -43,6 +68,8 @@ all = [
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "ruff>=0.4.0",
+    "mypy>=1.8.0",
 ]
 
 [project.scripts]
@@ -63,5 +90,18 @@ yaml = "sift.core.build_service:BuildService"
 [tool.setuptools.packages.find]
 include = ["sift*"]
 
+[tool.setuptools.package-data]
+sift = ["locales/*.pot", "locales/*/LC_MESSAGES/*.mo"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
