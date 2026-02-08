@@ -93,6 +93,34 @@ class SessionTemplate:
     outputs: list[OutputSpec] = field(default_factory=list)
     metadata: dict = field(default_factory=dict)
 
+    # ── Typed metadata accessors (backward compatible) ──
+
+    @property
+    def author(self) -> str:
+        """Template author from metadata."""
+        return str(self.metadata.get("author", ""))
+
+    @property
+    def version(self) -> str:
+        """Template version from metadata."""
+        return str(self.metadata.get("version", ""))
+
+    @property
+    def tags(self) -> list[str]:
+        """Template tags from metadata."""
+        raw = self.metadata.get("tags", [])
+        return list(raw) if isinstance(raw, list) else []
+
+    @property
+    def template_license(self) -> str:
+        """Template license from metadata."""
+        return str(self.metadata.get("license", ""))
+
+    @property
+    def repository(self) -> str:
+        """Template repository URL from metadata."""
+        return str(self.metadata.get("repository", ""))
+
     @classmethod
     def from_file(cls, path: Path) -> SessionTemplate:
         from sift.errors import SchemaVersionError

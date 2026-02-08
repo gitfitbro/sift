@@ -147,6 +147,88 @@ class TemplateService:
         """
         return self._find_template_path(name)
 
+    def install_from_url(self, url: str) -> TemplateInfo:
+        """Download and install a template from a URL.
+
+        Supports raw YAML URLs (e.g., GitHub raw files).
+
+        Args:
+            url: URL to a YAML template file.
+
+        Raises:
+            CaptureError: If download fails.
+            SiftError: If template is invalid.
+        """
+        import tempfile
+        import urllib.request
+
+        from sift.errors import CaptureError, SiftError
+
+        ensure_dirs()
+
+        # Download to a temporary file
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as tmp:
+                tmp_path = Path(tmp.name)
+                urllib.request.urlretrieve(url, tmp_path)
+        except Exception as e:
+            raise CaptureError(
+                f"Failed to download template from {url}: {e}",
+                file_path=url,
+            ) from e
+
+        # Validate and import
+        try:
+            t = SessionTemplate.from_file(tmp_path)
+        except SiftError:
+            tmp_path.unlink(missing_ok=True)
+            raise
+        except Exception as e:
+            tmp_path.unlink(missing_ok=True)
+            raise SiftError(f"Downloaded file is not a valid template: {e}") from e
+
+        slug = t.name.lower().replace(" ", "-").replace("_", "-")
+        dest = TEMPLATES_DIR / f"{slug}.yaml"
+        shutil.copy2(tmp_path, dest)
+        tmp_path.unlink(missing_ok=True)
+
+        logger.info("Installed template '%s' from %s to %s", t.name, url, dest)
+
+        return TemplateInfo(
+            name=t.name,
+            stem=dest.stem,
+            description=t.description,
+            phase_count=len(t.phases),
+            output_count=len(t.outputs),
+        )
+
+    def search_templates(self, query: str) -> list[TemplateInfo]:
+        """Search templates by name, description, or tags.
+
+        Args:
+            query: Search string to match against template name, description, and tags.
+        """
+        query_lower = query.lower()
+        all_templates = self.list_templates()
+        results = []
+
+        for t in all_templates:
+            # Check name and description
+            if query_lower in t.name.lower() or query_lower in t.description.lower():
+                results.append(t)
+                continue
+
+            # Check tags (need to load full template for metadata)
+            try:
+                path = self._find_template_path(t.stem)
+                full = SessionTemplate.from_file(path)
+                if any(query_lower in tag.lower() for tag in full.tags):
+                    results.append(t)
+            except Exception:
+                pass
+
+        return results
+
     def _find_template_path(self, name: str) -> Path:
         """Find a template file by name."""
         from sift.errors import TemplateNotFoundError

@@ -1,0 +1,53 @@
+name: Hello World
+description: >
+  A minimal starter template to learn sift. Two simple phases with text capture -
+  no audio or API key needed for the demo.
+
+phases:
+  - id: describe
+    name: Describe Something
+    prompt: >
+      Describe anything - a project idea, a problem you are solving,
+      or what you had for breakfast. This is just to see how sift works.
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: key_points
+        type: list
+        prompt: List the main points or ideas mentioned
+      - id: summary
+        type: text
+        prompt: Write a one-sentence summary
+
+  - id: reflect
+    name: Reflect and Add
+    prompt: >
+      Look at what was captured in the previous phase. Is there anything
+      you would add or change?
+    depends_on: describe
+    capture:
+      - type: text
+        required: false
+    extract:
+      - id: additions
+        type: list
+        prompt: List any additions or corrections
+      - id: overall_impression
+        type: text
+        prompt: What is the overall takeaway?
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary
+
+metadata:
+  author: sift
+  version: "1.0"
+  tags:
+    - starter
+    - tutorial
+    - beginner
+  license: MIT

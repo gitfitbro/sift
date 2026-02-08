@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import click
 import typer
 from rich.table import Table
 
@@ -100,7 +101,7 @@ def init_template():
         capture_type = typer.prompt(
             "  Capture type",
             default="audio",
-            type=typer.Choice(["audio", "transcript", "text", "none"]),
+            type=click.Choice(["audio", "transcript", "text", "none"]),
         )
 
         # Extraction fields
@@ -113,7 +114,7 @@ def init_template():
             field_type = typer.prompt(
                 "    Field type",
                 default="list",
-                type=typer.Choice(["list", "map", "text", "boolean"]),
+                type=click.Choice(["list", "map", "text", "boolean"]),
             )
             field_prompt = typer.prompt("    Extraction prompt")
             extractions.append(
@@ -163,3 +164,41 @@ def import_template(
     """Import a template from a file."""
     info = _svc.import_template(path)
     console.print(f"[green]Imported '{info.name}' ({info.phase_count} phases)[/green]")
+
+
+@app.command("install")
+@handle_errors
+def install_template(
+    url: str = typer.Argument(..., help="URL to template YAML file"),
+):
+    """Install a template from a URL (e.g., GitHub raw file)."""
+    with console.status(f"[cyan]Downloading template from {url}...[/cyan]"):
+        info = _svc.install_from_url(url)
+    console.print(f"[green]Installed '{info.name}' ({info.phase_count} phases)[/green]")
+
+
+@app.command("search")
+@handle_errors
+def search_templates(
+    query: str = typer.Argument(..., help="Search query (matches name, description, tags)"),
+):
+    """Search templates by name, description, or tags."""
+    results = _svc.search_templates(query)
+
+    if not results:
+        console.print(f"[yellow]No templates matching '{query}'[/yellow]")
+        return
+
+    table = Table(title=f"Templates matching '{query}'")
+    table.add_column("Name", style="bold cyan")
+    table.add_column("Description")
+    table.add_column("Phases", justify="center")
+
+    for t in results:
+        table.add_row(
+            t.stem,
+            t.description[:60] + ("..." if len(t.description) > 60 else ""),
+            str(t.phase_count),
+        )
+
+    console.print(table)

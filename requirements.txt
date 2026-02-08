@@ -7,6 +7,3 @@ google-genai>=1.0.0
 python-dotenv>=1.0.0
 pypdf>=3.17.0
 pdfplumber>=0.10.0
-
-# Optional: Audio processing (has compatibility issues with Python 3.13)
-# pydub>=0.25.1

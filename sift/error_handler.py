@@ -54,7 +54,8 @@ def _render_sift_error(e: SiftError) -> None:
         console.print("[dim]Run 'sift doctor' to check your provider configuration.[/dim]")
     elif isinstance(e, SchemaVersionError):
         console.print(
-            "[dim]This file was created by a newer version of sift. Please upgrade.[/dim]"
+            "[dim]Run 'sift migrate' to upgrade data, or upgrade sift if the file "
+            "is from a newer version.[/dim]"
         )
 
 

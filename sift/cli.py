@@ -25,9 +25,12 @@ app = typer.Typer(
 from sift.commands import (
     build_cmd,
     config_cmd,
+    demo_cmd,
     doctor_cmd,
     export_cmd,
     import_cmd,
+    init_cmd,
+    migrate_cmd,
     phase_cmd,
     plugin_cmd,
     session_cmd,
@@ -35,25 +38,52 @@ from sift.commands import (
     template_cmd,
 )
 
+# Getting Started
 app.add_typer(
-    template_cmd.app, name="template", help="Manage session templates", rich_help_panel="Advanced"
-)
-app.add_typer(session_cmd.app, name="session", help="Manage sessions", rich_help_panel="Advanced")
-app.add_typer(
-    phase_cmd.app, name="phase", help="Capture & process phase data", rich_help_panel="Advanced"
+    init_cmd.app, name="init", help="First-time setup wizard", rich_help_panel="Getting Started"
 )
 app.add_typer(
-    build_cmd.app, name="build", help="Generate outputs from sessions", rich_help_panel="Advanced"
+    demo_cmd.app,
+    name="demo",
+    help="Run a demo session (no API key needed)",
+    rich_help_panel="Getting Started",
+)
+
+# Configuration
+app.add_typer(
+    config_cmd.app, name="config", help="Manage configuration", rich_help_panel="Configuration"
 )
 app.add_typer(
-    config_cmd.app, name="config", help="Manage configuration", rich_help_panel="Advanced"
+    doctor_cmd.app,
+    name="doctor",
+    help="Check environment & diagnostics",
+    rich_help_panel="Configuration",
+)
+
+# Session Management
+app.add_typer(
+    template_cmd.app,
+    name="template",
+    help="Manage session templates",
+    rich_help_panel="Session Management",
 )
 app.add_typer(
-    doctor_cmd.app, name="doctor", help="Check environment & diagnostics", rich_help_panel="Info"
+    session_cmd.app, name="session", help="Manage sessions", rich_help_panel="Session Management"
 )
 app.add_typer(
-    plugin_cmd.app, name="plugins", help="List discovered plugins", rich_help_panel="Info"
+    phase_cmd.app,
+    name="phase",
+    help="Capture & process phase data",
+    rich_help_panel="Session Management",
 )
+app.add_typer(
+    build_cmd.app,
+    name="build",
+    help="Generate outputs from sessions",
+    rich_help_panel="Session Management",
+)
+
+# Data
 app.add_typer(
     export_cmd.app, name="export", help="Export sessions & templates", rich_help_panel="Data"
 )
@@ -62,6 +92,17 @@ app.add_typer(
     name="import-data",
     help="Import sessions & templates",
     rich_help_panel="Data",
+)
+app.add_typer(
+    migrate_cmd.app,
+    name="migrate",
+    help="Migrate data to current schema",
+    rich_help_panel="Data",
+)
+
+# Info
+app.add_typer(
+    plugin_cmd.app, name="plugins", help="List discovered plugins", rich_help_panel="Info"
 )
 app.add_typer(
     telemetry_cmd.app, name="telemetry", help="Manage anonymous telemetry", rich_help_panel="Info"

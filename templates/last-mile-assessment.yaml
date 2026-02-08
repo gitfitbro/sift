@@ -71,3 +71,12 @@ outputs:
     template: session-config
   - type: markdown
     template: session-summary
+
+metadata:
+  author: sift
+  version: "1.0"
+  tags:
+    - assessment
+    - launch
+    - readiness
+  license: MIT
