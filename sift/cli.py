@@ -77,8 +77,19 @@ def new(
 def run(
     session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
     phase: str = typer.Option(None, "--phase", "-p", help="Start at specific phase", autocompletion=complete_phase_id),
+    no_tui: bool = typer.Option(False, "--no-tui", help="Force Rich fallback instead of Textual TUI"),
 ):
     """[bold cyan]Run[/bold cyan] an interactive session (guided walkthrough)."""
+    if not no_tui:
+        try:
+            from sift.tui.app import SiftApp
+            from sift.tui.session_runner import SessionRunnerScreen
+            tui = SiftApp(session)
+            tui.push_screen(SessionRunnerScreen(session, start_phase=phase))
+            tui.run()
+            return
+        except ImportError:
+            pass
     banner()
     from sift.interactive import run_interactive
     run_interactive(session, phase)
@@ -98,8 +109,19 @@ def ls():
 @app.command("open", rich_help_panel="Session Workflow")
 def open_session(
     session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
+    no_tui: bool = typer.Option(False, "--no-tui", help="Force Rich fallback instead of Textual TUI"),
 ):
     """[bold cyan]Open[/bold cyan] an interactive session workspace."""
+    if not no_tui:
+        try:
+            from sift.tui.app import SiftApp
+            from sift.tui.workspace import WorkspaceScreen
+            tui = SiftApp(session)
+            tui.push_screen(WorkspaceScreen(session))
+            tui.run()
+            return
+        except ImportError:
+            pass
     banner()
     from sift.commands.workspace_cmd import open_workspace
     open_workspace(session)

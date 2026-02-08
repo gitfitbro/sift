@@ -1,0 +1,103 @@
+/* Sift TUI - Responsive layout */
+
+Screen {
+    background: $surface;
+}
+
+/* ── Header ── */
+#session-header {
+    dock: top;
+    height: auto;
+    max-height: 5;
+    background: $primary-background;
+    padding: 1 2;
+    border-bottom: solid $primary;
+}
+
+#session-header .title {
+    text-style: bold;
+    color: $text;
+}
+
+#session-header .subtitle {
+    color: $text-muted;
+}
+
+/* ── Pipeline ── */
+PipelineWidget {
+    height: auto;
+    min-height: 3;
+    max-height: 5;
+    padding: 1 2;
+    background: $surface;
+}
+
+/* ── Phase Panel ── */
+PhasePanel {
+    height: auto;
+    padding: 1 2;
+    margin: 0 1;
+    border: solid $primary;
+}
+
+PhasePanel .phase-title {
+    text-style: bold;
+    color: $accent;
+}
+
+PhasePanel .phase-prompt {
+    color: $text-muted;
+    margin: 1 0;
+}
+
+/* ── Extraction View ── */
+ExtractionView {
+    height: auto;
+    max-height: 50%;
+    padding: 1 2;
+}
+
+/* ── Capture Form ── */
+CaptureForm {
+    height: auto;
+    padding: 1 2;
+    margin: 1 0;
+}
+
+CaptureForm TextArea {
+    height: 10;
+    margin: 1 0;
+}
+
+CaptureForm .form-label {
+    color: $text;
+    text-style: bold;
+    margin: 0 0 1 0;
+}
+
+/* ── Footer ── */
+Footer {
+    background: $primary-background;
+}
+
+/* ── Session Runner ── */
+#runner-container {
+    height: 1fr;
+    overflow-y: auto;
+    padding: 0 1;
+}
+
+/* ── Workspace ── */
+#workspace-container {
+    height: 1fr;
+    overflow-y: auto;
+    padding: 0 1;
+}
+
+#action-bar {
+    dock: bottom;
+    height: auto;
+    padding: 1 2;
+    background: $surface;
+    border-top: solid $primary;
+}
