@@ -101,6 +101,8 @@ ENV_VAR_MAP = {
     "SIFT_PLAIN": "ui.plain_output",
     "ANTHROPIC_MODEL": "providers.anthropic.model",
     "GEMINI_MODEL": "providers.gemini.model",
+    "OLLAMA_MODEL": "providers.ollama.model",
+    "OLLAMA_ENDPOINT": "providers.ollama.endpoint",
 }
 
 

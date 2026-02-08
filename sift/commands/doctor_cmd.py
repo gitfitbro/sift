@@ -55,13 +55,19 @@ def doctor(
     for provider_name, status in key_status.items():
         has_key = status in ("env", "keyring", "file", "no key needed")
         detail = f"API key: {status}"
-        if has_key and verbose and status != "no key needed":
+        if has_key and verbose:
             try:
                 from sift.providers import PROVIDERS, _register_defaults
                 _register_defaults()
                 if provider_name in PROVIDERS:
                     p = PROVIDERS[provider_name]()
                     detail += f" | model: {p.model}"
+                    if provider_name == "ollama":
+                        if p.is_available():
+                            detail += f" | server: reachable ({p.endpoint})"
+                        else:
+                            detail += f" | server: not reachable ({p.endpoint})"
+                            has_key = False
             except Exception as e:
                 detail += f" | init error: {e}"
         checks.append((f"Provider: {provider_name}", has_key, detail))

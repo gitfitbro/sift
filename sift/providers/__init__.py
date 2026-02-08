@@ -18,8 +18,10 @@ def _register_defaults():
         return
     from .anthropic_provider import AnthropicProvider
     from .gemini_provider import GeminiProvider
+    from .ollama_provider import OllamaProvider
     PROVIDERS["anthropic"] = AnthropicProvider
     PROVIDERS["gemini"] = GeminiProvider
+    PROVIDERS["ollama"] = OllamaProvider
 
 
 def get_provider(name: Optional[str] = None):

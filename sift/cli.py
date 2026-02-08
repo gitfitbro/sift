@@ -32,7 +32,7 @@ app.add_typer(doctor_cmd.app, name="doctor", help="Check environment & diagnosti
 def main_callback(
     provider: str = typer.Option(
         None, "--provider", "-P",
-        help="AI provider to use (anthropic, gemini). Overrides AI_PROVIDER env var.",
+        help="AI provider to use (anthropic, gemini, ollama). Overrides AI_PROVIDER env var.",
         autocompletion=complete_provider_name,
     ),
     model: str = typer.Option(
@@ -45,10 +45,12 @@ def main_callback(
     if model:
         import os
         provider_name = provider or os.environ.get("AI_PROVIDER", "anthropic")
-        if provider_name == "gemini":
-            os.environ["GEMINI_MODEL"] = model
-        else:
-            os.environ["ANTHROPIC_MODEL"] = model
+        model_env = {
+            "gemini": "GEMINI_MODEL",
+            "anthropic": "ANTHROPIC_MODEL",
+            "ollama": "OLLAMA_MODEL",
+        }
+        os.environ[model_env.get(provider_name, "ANTHROPIC_MODEL")] = model
 
     if provider:
         from sift.providers import get_provider
@@ -56,9 +58,16 @@ def main_callback(
         try:
             p = get_provider(provider)
             if not p.is_available():
-                from sift.config import PROVIDER_KEY_MAP
-                env_var = PROVIDER_KEY_MAP.get(provider, f"{provider.upper()}_API_KEY")
-                console.print(f"[red]Provider '{provider}' requires {env_var} to be set.[/red]")
+                if provider == "ollama":
+                    endpoint = getattr(p, "endpoint", "http://localhost:11434")
+                    console.print(
+                        f"[red]Ollama server not reachable at {endpoint}.[/red]\n"
+                        "[dim]Start it with: ollama serve[/dim]"
+                    )
+                else:
+                    from sift.config import PROVIDER_KEY_MAP
+                    env_var = PROVIDER_KEY_MAP.get(provider, f"{provider.upper()}_API_KEY")
+                    console.print(f"[red]Provider '{provider}' requires {env_var} to be set.[/red]")
                 raise typer.Exit(1)
             console.print(f"[dim]Using {provider} ({p.model})[/dim]")
         except SiftError as e:
@@ -279,17 +288,21 @@ def analyze(
 
 
 @app.command(rich_help_panel="Info")
-def models():
+def models(
+    provider_filter: str = typer.Option(
+        None, "--provider", "-P",
+        help="Show models for a specific provider only",
+        autocompletion=complete_provider_name,
+    ),
+):
     """List available AI models for each provider."""
     from rich.table import Table
-
-    from sift.providers.gemini_provider import GEMINI_MODELS
-
-    current_provider = typer.Context
     import os
-    active_provider = os.environ.get("AI_PROVIDER", "anthropic")
-    active_gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
-    active_anthropic_model = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-5-20250514")
+
+    from sift.core.config_service import get_config_service
+
+    config = get_config_service()
+    active_provider = config.get_provider_name()
 
     table = Table(title="Available Models", show_header=True)
     table.add_column("Provider", style="cyan")
@@ -297,25 +310,54 @@ def models():
     table.add_column("Description")
     table.add_column("Active", justify="center")
 
-    # Gemini models
-    for model_id, desc in GEMINI_MODELS.items():
-        active = "*" if active_provider == "gemini" and model_id == active_gemini_model else ""
-        table.add_row("gemini", model_id, desc, active)
-
     # Anthropic models
-    anthropic_models = {
-        "claude-sonnet-4-5-20250514": "Fast, intelligent (default)",
-        "claude-opus-4-20250514": "Most capable, complex tasks",
-        "claude-haiku-3-5-20241022": "Fastest, lowest cost",
-    }
-    for model_id, desc in anthropic_models.items():
-        active = "*" if active_provider == "anthropic" and model_id == active_anthropic_model else ""
-        table.add_row("anthropic", model_id, desc, active)
+    if not provider_filter or provider_filter == "anthropic":
+        active_model = config.get_provider_model("anthropic")
+        anthropic_models = {
+            "claude-sonnet-4-5-20250514": "Fast, intelligent (default)",
+            "claude-opus-4-20250514": "Most capable, complex tasks",
+            "claude-haiku-3-5-20241022": "Fastest, lowest cost",
+        }
+        for model_id, desc in anthropic_models.items():
+            active = "*" if active_provider == "anthropic" and model_id == active_model else ""
+            table.add_row("anthropic", model_id, desc, active)
+
+    # Gemini models
+    if not provider_filter or provider_filter == "gemini":
+        from sift.providers.gemini_provider import GEMINI_MODELS
+        active_model = config.get_provider_model("gemini")
+        for model_id, desc in GEMINI_MODELS.items():
+            active = "*" if active_provider == "gemini" and model_id == active_model else ""
+            table.add_row("gemini", model_id, desc, active)
+
+    # Ollama models
+    if not provider_filter or provider_filter == "ollama":
+        from sift.providers.ollama_provider import OLLAMA_MODELS
+        active_model = config.get_provider_model("ollama")
+        try:
+            from sift.providers.ollama_provider import OllamaProvider
+            ollama = OllamaProvider()
+            server_models = ollama.list_models()
+            if server_models:
+                for m in server_models:
+                    model_name = m.get("name", m.get("model", "unknown"))
+                    size = m.get("size", 0)
+                    size_str = f" ({size / (1024**3):.1f}GB)" if size else ""
+                    active = "*" if active_provider == "ollama" and model_name == active_model else ""
+                    table.add_row("ollama", model_name, f"Local{size_str}", active)
+            else:
+                for model_id, desc in OLLAMA_MODELS.items():
+                    active = "*" if active_provider == "ollama" and model_id == active_model else ""
+                    table.add_row("ollama", model_id, f"{desc} (not pulled)", active)
+        except Exception:
+            for model_id, desc in OLLAMA_MODELS.items():
+                active = "*" if active_provider == "ollama" and model_id == active_model else ""
+                table.add_row("ollama", model_id, f"{desc} (server offline)", active)
 
     console.print(table)
     console.print()
-    console.print("[dim]Switch model:[/dim]  sift --model gemini-2.5-pro-preview-05-06 run my-session")
-    console.print("[dim]Set default:[/dim]   GEMINI_MODEL=gemini-2.5-pro-preview-05-06  (in .env)")
+    console.print("[dim]Switch provider:[/dim]  sift --provider ollama --model llama3.2 run my-session")
+    console.print("[dim]Set default:[/dim]     sift config set providers.default ollama")
 
 
 if __name__ == "__main__":

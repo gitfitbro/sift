@@ -23,6 +23,7 @@ except ImportError:
 PROVIDER_KEY_MAP = {
     "anthropic": "ANTHROPIC_API_KEY",
     "gemini": "GOOGLE_API_KEY",
+    "ollama": None,
 }
 
 

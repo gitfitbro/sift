@@ -30,7 +30,7 @@ def complete_phase_id(ctx, incomplete: str) -> list[str]:
 
 def complete_provider_name(incomplete: str) -> list[str]:
     """Complete provider names."""
-    return [p for p in ["anthropic", "gemini"] if p.startswith(incomplete)]
+    return [p for p in ["anthropic", "gemini", "ollama"] if p.startswith(incomplete)]
 
 
 def complete_format(incomplete: str) -> list[str]:
