@@ -178,14 +178,8 @@ class AnalysisService:
         # Create session from generated template
         detail = self._session_svc.create_session(tmpl_path.stem, name=session_name)
 
-        # Populate matching phases (with fallback to first phase)
+        # Populate matching phases (_populate_matching_phases includes fallback to first phase)
         populated_phases = self._populate_matching_phases(detail.name, structure)
-        if not populated_phases:
-            first_phase_id = detail.phases[0].id if detail.phases else None
-            if first_phase_id:
-                analysis_text = serialize_analysis_text(structure)
-                self._extraction_svc.capture_text(detail.name, first_phase_id, analysis_text)
-                populated_phases.append(first_phase_id)
 
         # Store analysis context alongside session
         analysis_path = self._store_analysis(detail.name, serialize_analysis_context(structure))
