@@ -1,0 +1,93 @@
+name: "Chip Task Intake"
+description: "Structured intake for chip-command task orchestration. Captures requirements, risk assessment, and skill mapping aligned with the 4-axis autonomy scoring system."
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - task-intake
+    - orchestration
+    - autonomy
+  license: MIT
+
+phases:
+  - id: requirements
+    name: "Requirements Capture"
+    prompt: >
+      Describe the task requirements, expected outcomes, and constraints.
+      Include acceptance criteria and priority level.
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: title
+        type: text
+        prompt: "One-line task title"
+      - id: description
+        type: text
+        prompt: "Detailed task description including context and scope"
+      - id: acceptance_criteria
+        type: list
+        prompt: "List specific, testable acceptance criteria"
+      - id: priority
+        type: text
+        prompt: "Priority level: critical, high, medium, or low"
+      - id: labels
+        type: list
+        prompt: "Relevant labels for categorization (e.g. frontend, backend, database, security)"
+
+  - id: risk_assessment
+    name: "Risk & Stakes Assessment"
+    prompt: >
+      What could go wrong? What is the blast radius if this task fails?
+      Consider rollback complexity, test coverage, and impact on other systems.
+    depends_on: requirements
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: stakes_level
+        type: text
+        prompt: "Stakes level: high, medium, or low"
+      - id: blast_radius
+        type: text
+        prompt: "Blast radius description — what systems or users are affected if this fails"
+      - id: risk_factors
+        type: list
+        prompt: "Key risk factors that could cause failure"
+      - id: rollback_plan
+        type: text
+        prompt: "Rollback strategy if things go wrong"
+      - id: test_coverage
+        type: text
+        prompt: "Current test coverage status and what testing is needed"
+
+  - id: skill_mapping
+    name: "Skills & Capabilities Needed"
+    prompt: >
+      What skills, tools, and domain knowledge are needed to complete this task?
+      Which pipeline stage should it start at?
+    depends_on: requirements
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: required_skills
+        type: list
+        prompt: "Required agent capabilities (e.g. frontend, backend, database, deployment, testing)"
+      - id: tools_needed
+        type: list
+        prompt: "Tools and APIs the agent will need access to"
+      - id: suggested_stage
+        type: text
+        prompt: "Suggested starting pipeline stage: research, planning, design, engineering, review, qa, or production"
+      - id: complexity
+        type: text
+        prompt: "Complexity estimate: trivial, small, medium, large, or xl"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary
