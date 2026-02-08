@@ -1,7 +1,5 @@
 """Tests for AnalysisService - analysis-session integration."""
 
-from pathlib import Path
-
 import pytest
 import yaml
 
@@ -185,9 +183,7 @@ class TestSerializeAnalysisContext:
 
     def test_limits_dependencies(self, tmp_path):
         deps = [DependencyInfo(name=f"dep-{i}") for i in range(50)]
-        structure = ProjectStructure(
-            root_path=tmp_path, name="big", dependencies=deps
-        )
+        structure = ProjectStructure(root_path=tmp_path, name="big", dependencies=deps)
         ctx = serialize_analysis_context(structure)
         assert len(ctx["dependencies"]) == 30
 

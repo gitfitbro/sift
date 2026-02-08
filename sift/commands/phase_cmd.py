@@ -95,8 +95,11 @@ def capture_phase(
         analysis_svc = AnalysisService()
         with console.status("[bold cyan]Analyzing project...[/bold cyan]"):
             analysis_svc.capture_analysis(
-                session, phase, Path(analyze).resolve(),
-                provider=provider, append=append,
+                session,
+                phase,
+                Path(analyze).resolve(),
+                provider=provider,
+                append=append,
             )
         console.print("[green]Project analysis captured as transcript[/green]")
         format_next_step(f"sift phase extract {session} --phase {phase}")

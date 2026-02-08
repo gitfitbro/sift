@@ -96,17 +96,19 @@ def export_session(
 def _render_session_created(detail):
     """Render the session creation summary."""
     phases_list = "\n".join(
-        f"  {ICONS['pending']} {p.name} [dim]({p.id})[/dim]" for p in detail.phases
+        f"  {ICONS['pending']} [bold]{p.name}[/bold] [dim]({p.id})[/dim]" for p in detail.phases
     )
 
     console.print(
         Panel(
-            f"[bold]{detail.template_name}[/bold]\n[dim]{detail.status}[/dim]\n\n{phases_list}",
+            f"[bold]{detail.template_name}[/bold] "
+            f"[dim]| {detail.total_phases} phases[/dim]\n\n{phases_list}",
             title=f"[bold green]Session Created: {detail.name}[/bold green]",
             border_style="green",
             padding=(1, 2),
         )
     )
+    console.print()
     format_next_step(f"sift run {detail.name}")
 
 

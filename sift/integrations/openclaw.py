@@ -54,6 +54,16 @@ class SiftClawdSkill:
                 "description": "Build outputs and finish session",
                 "usage": "/sift done",
             },
+            {
+                "command": "/sift templates",
+                "description": "List available session templates",
+                "usage": "/sift templates",
+            },
+            {
+                "command": "/sift analyze",
+                "description": "Analyze a project and capture results",
+                "usage": "/sift analyze <path>",
+            },
         ]
 
     def handle_message(
@@ -87,6 +97,8 @@ class SiftClawdSkill:
             "extract": self._cmd_extract,
             "status": self._cmd_status,
             "done": self._cmd_done,
+            "templates": self._cmd_templates,
+            "analyze": self._cmd_analyze,
             "help": lambda _cid, _args: self._help(),
         }
 
@@ -219,6 +231,74 @@ class SiftClawdSkill:
         del self._active_sessions[channel_id]
         return f"Outputs generated:\n{files}\n\nSession complete."
 
+    def _cmd_templates(self, channel_id: str, args: str) -> str:
+        from sift.core.template_service import TemplateService
+
+        svc = TemplateService()
+        templates = svc.list_templates()
+
+        if not templates:
+            return "No templates found."
+
+        lines = ["Available templates:"]
+        for t in templates:
+            desc = t.description[:60] + "..." if len(t.description) > 60 else t.description
+            lines.append(f"  {t.name} ({t.phase_count} phases) - {desc}")
+        lines.append("\nUse: /sift new <template-name>")
+        return "\n".join(lines)
+
+    def _cmd_analyze(self, channel_id: str, args: str) -> str:
+        from pathlib import Path
+
+        from sift.analyzers.project_analyzer import ProjectAnalyzer
+        from sift.core.analysis_service import AnalysisService
+
+        project_path_str = args.strip()
+        if not project_path_str:
+            return "Usage: /sift analyze <path>"
+
+        project_path = Path(project_path_str)
+        if not project_path.is_dir():
+            return f"Not a directory: {project_path}"
+
+        analyzer = ProjectAnalyzer()
+        structure = analyzer.analyze(project_path.resolve())
+
+        summary_lines = [
+            f"Project: {structure.name}",
+            f"Files: {structure.total_files}, Lines: {structure.total_lines:,}",
+        ]
+        if structure.languages:
+            top_langs = sorted(structure.languages.items(), key=lambda x: -x[1])[:5]
+            summary_lines.append(
+                "Languages: " + ", ".join(f"{lang} ({cnt})" for lang, cnt in top_langs)
+            )
+        if structure.frameworks_detected:
+            summary_lines.append(f"Frameworks: {', '.join(structure.frameworks_detected)}")
+        if structure.dependencies:
+            summary_lines.append(f"Dependencies: {len(structure.dependencies)}")
+
+        # If there is an active session, capture the analysis into the next pending phase
+        session_name = self._get_active(channel_id)
+        if session_name:
+            from sift.core.session_service import SessionService
+
+            svc = SessionService()
+            detail = svc.get_session_status(session_name)
+            if detail.next_action_phase:
+                analysis_svc = AnalysisService()
+                analysis_svc.capture_analysis(
+                    session_name, detail.next_action_phase, project_path.resolve()
+                )
+                summary_lines.append(
+                    f"\nAnalysis captured to phase '{detail.next_action_phase}' "
+                    f"in session '{session_name}'"
+                )
+        else:
+            summary_lines.append("\nNo active session. Use /sift new <template> to start one.")
+
+        return "\n".join(summary_lines)
+
     def _get_active(self, channel_id: str) -> str | None:
         return self._active_sessions.get(channel_id)
 
@@ -231,5 +311,7 @@ class SiftClawdSkill:
             "  /sift next - Show next action\n"
             "  /sift extract <phase> - Extract data\n"
             "  /sift status - Show progress\n"
-            "  /sift done - Build outputs"
+            "  /sift done - Build outputs\n"
+            "  /sift templates - List templates\n"
+            "  /sift analyze <path> - Analyze a project"
         )

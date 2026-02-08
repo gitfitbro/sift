@@ -1,0 +1,125 @@
+name: "Infrastructure Workflow Mapping"
+description: >
+  Map infrastructure, development tooling, and deployment pipelines. Capture the current
+  state, pain points, and automation flows for teams using IaC, sandbox environments,
+  and AI-assisted development. Works for any infra team -- cloud, local, or hybrid.
+
+metadata:
+  scenario: "infra-workflow-mapping"
+  version: "1.0"
+  roles:
+    practitioner: "The engineer describing their infrastructure and workflows"
+    advisor: "The person facilitating the mapping session"
+
+phases:
+  - id: infrastructure-inventory
+    name: "Infrastructure Inventory"
+    prompt: >
+      Walk me through your infrastructure stack. What cloud services do you use
+      and what does each one do? How is infrastructure defined -- Terraform, CDK,
+      CloudFormation, or something else? What runs locally vs. in the cloud?
+      Include any local simulation tools like LocalStack, Docker Compose, or
+      similar. How do these services connect to each other?
+    capture:
+      - type: audio
+        required: true
+    extract:
+      - id: cloud_services
+        type: list
+        prompt: "List every cloud service mentioned (e.g. AWS Lambda, S3, DynamoDB) and what it is used for"
+      - id: iac_tools
+        type: list
+        prompt: "List all infrastructure-as-code tools (Terraform, CDK, CloudFormation, etc.) and what they manage"
+      - id: local_dev_tools
+        type: list
+        prompt: "List all local development and simulation tools (LocalStack, Docker, etc.) and their purpose"
+      - id: service_dependencies
+        type: map
+        prompt: "Map service dependencies: which services depend on which others, including ports and protocols"
+
+  - id: dev-workflow
+    name: "Development & Deployment Workflow"
+    prompt: >
+      Take me through a typical development cycle. How does code go from a
+      developer's machine to production? What CI/CD pipelines exist? Are there
+      any bots, sandbox environments, or AI-assisted tools in the pipeline?
+      How do developers test their changes before merging?
+    depends_on: infrastructure-inventory
+    capture:
+      - type: audio
+        required: true
+    extract:
+      - id: pipeline_steps
+        type: list
+        prompt: "Extract each step in the development-to-production pipeline with actors and tools involved"
+      - id: automation_tools
+        type: list
+        prompt: "List all automation tools (CI/CD, bots, AI assistants, sandbox managers) and their role"
+      - id: sandbox_config
+        type: map
+        prompt: "Describe sandbox or environment configuration: how they are created, what they contain, their lifecycle"
+      - id: ai_integration
+        type: list
+        prompt: "Describe any AI-assisted development tools and how they fit into the workflow"
+      - id: testing_strategy
+        type: list
+        prompt: "List all testing approaches: unit, integration, e2e, QA, staging, and how they run"
+
+  - id: pain-points
+    name: "Pain Points & Bottlenecks"
+    prompt: >
+      Where does it break? What takes too long? What is flaky or unreliable?
+      Think about: environment setup time, snapshot or restore issues, service
+      dependency failures, deployment bottlenecks, debugging difficulties,
+      and anything that slows down the team.
+    depends_on: dev-workflow
+    capture:
+      - type: audio
+        required: false
+    extract:
+      - id: pain_points
+        type: list
+        prompt: "List every pain point, bottleneck, or reliability issue mentioned"
+      - id: time_sinks
+        type: list
+        prompt: "Identify processes that take disproportionate time (e.g. environment rebuild, snapshot restore)"
+      - id: failure_modes
+        type: list
+        prompt: "Document recurring failure modes and their impact: what breaks, how often, what is the cost"
+      - id: workarounds
+        type: list
+        prompt: "List any workarounds or manual interventions currently required"
+
+  - id: improvement-roadmap
+    name: "Improvement Roadmap"
+    prompt: >
+      For each pain point, what would the ideal fix look like? Categorize by:
+      configuration fix, tooling change, process improvement, or custom
+      engineering work. What could be done this week? What needs longer-term
+      planning? How would you measure success?
+    depends_on: pain-points
+    capture:
+      - type: audio
+        required: false
+    extract:
+      - id: interventions
+        type: map
+        prompt: >
+          Map each problem to an intervention type (1=Configuration Fix,
+          2=Tooling Change, 3=Process Improvement, 4=Custom Engineering)
+          with effort estimate and priority
+      - id: quick_wins
+        type: list
+        prompt: "Identify improvements that can be made this week with minimal effort"
+      - id: strategic_changes
+        type: list
+        prompt: "Identify larger strategic changes that require planning and investment"
+      - id: success_metrics
+        type: list
+        prompt: "Define how to measure whether each improvement is working"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

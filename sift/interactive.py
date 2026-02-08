@@ -193,12 +193,10 @@ def run_interactive(session_name: str, start_phase: str = None):
 
         # ── Capture ──
         has_content = ps and ps.status not in ("pending",)
-        if ps and ps.status == "pending" or has_content:
+        if (ps and ps.status == "pending") or has_content:
             append = False
             if has_content:
-                console.print(
-                    "\n  [yellow]This phase already has content.[/yellow]"
-                )
+                console.print("\n  [yellow]This phase already has content.[/yellow]")
                 add_action = Prompt.ask(
                     "  Append more, replace, or skip?",
                     choices=["append", "replace", "skip"],
@@ -251,9 +249,7 @@ def run_interactive(session_name: str, start_phase: str = None):
                 text = "\n".join(lines)
                 if text.strip():
                     try:
-                        _extraction_svc.capture_text(
-                            session_name, pt.id, text, append=append
-                        )
+                        _extraction_svc.capture_text(session_name, pt.id, text, append=append)
                     except Exception as e:
                         console.print(f"  [red]{e}[/red]")
             else:

@@ -120,3 +120,12 @@ class CaptureForm(Widget):
             self.notify(f"Not a directory: {path}", severity="error")
             return
         self.post_message(self.Submitted(mode="analyze", content=str(path)))
+
+    def set_analyze_path(self, path: str) -> None:
+        """Pre-fill the analyze input with a cached project path."""
+        try:
+            analyze_input = self.query_one("#analyze-input", Input)
+            if not analyze_input.value.strip():
+                analyze_input.value = path
+        except Exception:
+            pass

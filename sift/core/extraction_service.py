@@ -93,7 +93,9 @@ class ExtractionService:
             ps.transcribed_at = now
             s.save()
             char_count = len(dest.read_text())
-            logger.info("Text captured for %s: %d chars (appended=%s)", phase_id, char_count, appended)
+            logger.info(
+                "Text captured for %s: %d chars (appended=%s)", phase_id, char_count, appended
+            )
             return CaptureResult(
                 phase_id=phase_id,
                 phase_name=pt.name,

@@ -9,14 +9,13 @@ Bridges project analysis (sift analyze) with the session workflow by:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
 
 from sift.analyzers.models import ProjectStructure
 from sift.analyzers.project_analyzer import ProjectAnalyzer
-from sift.core import AnalysisSessionResult, SessionDetail
+from sift.core import AnalysisSessionResult
 from sift.core.extraction_service import ExtractionService
 from sift.core.session_service import SessionService
 from sift.core.template_service import TemplateService
@@ -29,6 +28,8 @@ logger = logging.getLogger("sift.core.analysis")
 _ARCHITECTURE_KEYWORDS = {"architecture", "overview", "structure", "design", "context"}
 _DEPENDENCY_KEYWORDS = {"dependency", "dependencies", "packages", "audit"}
 _QUALITY_KEYWORDS = {"quality", "complexity", "hotspot", "review"}
+_CONTEXT_KEYWORDS = {"current", "state", "background", "describe", "inventory", "infrastructure"}
+_WORKFLOW_KEYWORDS = {"workflow", "process", "pipeline", "flow", "steps", "deployment"}
 
 
 def serialize_analysis_text(structure: ProjectStructure) -> str:
@@ -124,7 +125,7 @@ class AnalysisService:
         provider: AIProvider | None = None,
         session_name: str | None = None,
     ) -> AnalysisSessionResult:
-        """One-shot: analyze project, generate template, create session, populate first phase.
+        """One-shot: analyze project, generate template, create session, populate phases.
 
         Args:
             project_path: Path to the project directory.
@@ -139,6 +140,27 @@ class AnalysisService:
 
         # Analyze
         structure = self._analyzer.analyze(project_path, provider=provider)
+        return self.create_session_from_structure(
+            structure, provider=provider, session_name=session_name
+        )
+
+    def create_session_from_structure(
+        self,
+        structure: ProjectStructure,
+        provider: AIProvider | None = None,
+        session_name: str | None = None,
+    ) -> AnalysisSessionResult:
+        """Create a session from a pre-computed ProjectStructure (avoids re-analysis).
+
+        Args:
+            structure: Already-computed project analysis.
+            provider: Optional AI provider for template recommendation.
+            session_name: Optional session name (auto-generated if omitted).
+
+        Returns:
+            AnalysisSessionResult with created session details.
+        """
+        ensure_dirs()
 
         # Generate and save template
         rec = self._analyzer.recommend_template(structure, provider=provider)
@@ -156,14 +178,8 @@ class AnalysisService:
         # Create session from generated template
         detail = self._session_svc.create_session(tmpl_path.stem, name=session_name)
 
-        # Populate first phase with analysis text
-        analysis_text = serialize_analysis_text(structure)
-        first_phase_id = detail.phases[0].id if detail.phases else None
-        populated_phases = []
-
-        if first_phase_id:
-            self._extraction_svc.capture_text(detail.name, first_phase_id, analysis_text)
-            populated_phases.append(first_phase_id)
+        # Populate matching phases (_populate_matching_phases includes fallback to first phase)
+        populated_phases = self._populate_matching_phases(detail.name, structure)
 
         # Store analysis context alongside session
         analysis_path = self._store_analysis(detail.name, serialize_analysis_context(structure))
@@ -303,6 +319,18 @@ class AnalysisService:
                 quality_text = self._build_quality_text(structure)
                 self._extraction_svc.capture_text(session_name, pt.id, quality_text)
                 populated.append(pt.id)
+            elif phase_words & (_CONTEXT_KEYWORDS | _WORKFLOW_KEYWORDS):
+                self._extraction_svc.capture_text(session_name, pt.id, analysis_text)
+                populated.append(pt.id)
+
+        # Fallback: if no keywords matched, populate the first pending phase
+        if not populated:
+            for pt in tmpl.phases:
+                ps = s.phases.get(pt.id)
+                if ps and ps.status == "pending":
+                    self._extraction_svc.capture_text(session_name, pt.id, analysis_text)
+                    populated.append(pt.id)
+                    break
 
         return populated
 
