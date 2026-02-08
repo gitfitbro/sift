@@ -1,0 +1,88 @@
+name: "Code Review"
+description: "Structured code review capturing implementation quality, security concerns, and approval decisions. Designed for the chip-command review pipeline stage."
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - code-review
+    - quality
+    - security
+  license: MIT
+
+phases:
+  - id: implementation_check
+    name: "Implementation Check"
+    prompt: >
+      Review the implementation against the original requirements.
+      Does the code do what it's supposed to do? Are edge cases handled?
+      Is the approach sound?
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: requirements_met
+        type: list
+        prompt: "List each requirement and whether it was met (requirement: status)"
+      - id: issues_found
+        type: list
+        prompt: "List all bugs, logic errors, or incorrect behavior found"
+      - id: edge_cases
+        type: list
+        prompt: "List edge cases that are handled and ones that are missing"
+      - id: approach_assessment
+        type: text
+        prompt: "Overall assessment of the technical approach: sound, questionable, or needs rework"
+
+  - id: quality_assessment
+    name: "Quality Assessment"
+    prompt: >
+      Evaluate code quality: readability, maintainability, adherence to project conventions.
+      Are there performance concerns? Is error handling adequate?
+    depends_on: implementation_check
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: patterns_identified
+        type: list
+        prompt: "Design patterns and conventions used (both good and concerning)"
+      - id: readability_score
+        type: text
+        prompt: "Readability assessment: excellent, good, fair, or poor"
+      - id: performance_concerns
+        type: list
+        prompt: "Any performance issues or potential bottlenecks"
+      - id: suggested_improvements
+        type: list
+        prompt: "Specific improvement suggestions with file/line references"
+
+  - id: security_scan
+    name: "Security Scan"
+    prompt: >
+      Check for security vulnerabilities: injection, XSS, auth bypass,
+      secrets exposure, dependency issues. What's the approval decision?
+    depends_on: implementation_check
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: security_concerns
+        type: list
+        prompt: "List any security vulnerabilities or risks found (with severity)"
+      - id: secrets_exposure
+        type: boolean
+        prompt: "Are there any exposed secrets, API keys, or credentials?"
+      - id: approval_status
+        type: text
+        prompt: "Review decision: approved, approved-with-changes, or rejected"
+      - id: blocking_issues
+        type: list
+        prompt: "Issues that must be fixed before approval (empty if approved)"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

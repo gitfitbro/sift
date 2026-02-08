@@ -1,0 +1,90 @@
+name: "Design Spec"
+description: "Structured design specification capturing architecture decisions, component design, and data flows. Designed for the chip-command design pipeline stage."
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - design
+    - architecture
+    - specification
+  license: MIT
+
+phases:
+  - id: architecture
+    name: "Architecture Overview"
+    prompt: >
+      Define the high-level architecture. What components are involved?
+      How do they communicate? What patterns and principles guide the design?
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: components
+        type: list
+        prompt: "List all components/modules involved with their responsibilities"
+      - id: communication_patterns
+        type: list
+        prompt: "How components communicate (e.g., REST, events, direct calls)"
+      - id: patterns_used
+        type: list
+        prompt: "Design patterns and architectural principles applied"
+      - id: constraints
+        type: list
+        prompt: "Technical constraints that shape the design"
+
+  - id: component_design
+    name: "Component Design"
+    prompt: >
+      Detail the internal design of key components. Define interfaces,
+      data structures, and the responsibilities of each piece.
+    depends_on: architecture
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: interfaces
+        type: list
+        prompt: "Public interfaces and APIs each component exposes"
+      - id: data_structures
+        type: list
+        prompt: "Key data structures and their schemas"
+      - id: dependencies
+        type: list
+        prompt: "Internal and external dependencies for each component"
+      - id: trade_offs
+        type: list
+        prompt: "Design trade-offs made and their rationale"
+
+  - id: data_flow
+    name: "Data Flow & Integration"
+    prompt: >
+      Map how data flows through the system. Where does it enter,
+      how is it transformed, where is it stored, and how is it accessed?
+    depends_on: architecture
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: data_sources
+        type: list
+        prompt: "Data entry points and their formats"
+      - id: transformations
+        type: list
+        prompt: "Data transformations applied at each stage"
+      - id: storage
+        type: list
+        prompt: "Where data is persisted and in what format"
+      - id: access_patterns
+        type: list
+        prompt: "How data is queried or consumed downstream"
+      - id: error_handling
+        type: text
+        prompt: "How data errors and validation failures are handled"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

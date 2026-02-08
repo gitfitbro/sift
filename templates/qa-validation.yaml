@@ -1,0 +1,87 @@
+name: "QA Validation"
+description: "Structured QA validation capturing test planning, execution results, and regression analysis. Designed for the chip-command QA pipeline stage."
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - qa
+    - testing
+    - validation
+  license: MIT
+
+phases:
+  - id: test_planning
+    name: "Test Planning"
+    prompt: >
+      What needs to be tested? Define test cases covering the happy path,
+      edge cases, error conditions, and integration points.
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: test_cases
+        type: list
+        prompt: "List each test case with description and expected outcome"
+      - id: edge_cases
+        type: list
+        prompt: "Edge cases and boundary conditions to test"
+      - id: integration_points
+        type: list
+        prompt: "Integration points with other systems that need testing"
+      - id: test_data_needed
+        type: list
+        prompt: "Test data or fixtures required"
+
+  - id: test_execution
+    name: "Test Execution"
+    prompt: >
+      Run the planned tests. Record results for each test case.
+      Note any unexpected behavior or flaky results.
+    depends_on: test_planning
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: results
+        type: list
+        prompt: "Result for each test case (test name: pass/fail with details)"
+      - id: failures
+        type: list
+        prompt: "Detailed failure descriptions including steps to reproduce"
+      - id: unexpected_behavior
+        type: list
+        prompt: "Any unexpected behavior observed during testing, even if tests pass"
+      - id: coverage_assessment
+        type: text
+        prompt: "Overall test coverage assessment: comprehensive, adequate, or insufficient"
+
+  - id: regression_check
+    name: "Regression Check"
+    prompt: >
+      Verify that existing functionality still works. Run the full test suite.
+      Check for side effects in related components.
+    depends_on: test_execution
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: regressions
+        type: list
+        prompt: "Any regressions found (existing behavior that broke)"
+      - id: side_effects
+        type: list
+        prompt: "Side effects observed in related components"
+      - id: test_suite_status
+        type: text
+        prompt: "Full test suite result: all passing, failures found, or unable to run"
+      - id: qa_verdict
+        type: text
+        prompt: "QA verdict: approved, needs-fixes, or blocked"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

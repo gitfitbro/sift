@@ -1,0 +1,93 @@
+name: "Deployment Checklist"
+description: "Structured deployment checklist capturing pre-deploy verification, execution steps, and post-deploy monitoring. Designed for the chip-command production pipeline stage."
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - deployment
+    - production
+    - infrastructure
+  license: MIT
+
+phases:
+  - id: pre_deploy
+    name: "Pre-Deploy Verification"
+    prompt: >
+      Verify all prerequisites before deployment. Check that CI passes,
+      approvals are in place, rollback plan exists, and dependencies are ready.
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: prerequisites
+        type: list
+        prompt: "List each prerequisite and its status (requirement: ready/not-ready)"
+      - id: ci_status
+        type: text
+        prompt: "CI/CD pipeline status: passing, failing, or not applicable"
+      - id: rollback_plan
+        type: text
+        prompt: "Rollback strategy if deployment fails"
+      - id: affected_services
+        type: list
+        prompt: "Services and systems affected by this deployment"
+      - id: deploy_window
+        type: text
+        prompt: "Deployment window and any timing constraints"
+
+  - id: deploy_execution
+    name: "Deploy Execution"
+    prompt: >
+      Execute the deployment. Record each step, any issues encountered,
+      and the current state of the system during rollout.
+    depends_on: pre_deploy
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: deploy_steps
+        type: list
+        prompt: "Each deployment step executed with outcome (step: success/failed)"
+      - id: issues_during_deploy
+        type: list
+        prompt: "Any issues encountered during deployment"
+      - id: rollback_triggered
+        type: boolean
+        prompt: "Was a rollback triggered during deployment?"
+      - id: deploy_duration
+        type: text
+        prompt: "Total deployment duration"
+
+  - id: post_deploy
+    name: "Post-Deploy Monitoring"
+    prompt: >
+      Monitor the system after deployment. Check health endpoints,
+      error rates, performance metrics, and user-facing behavior.
+    depends_on: deploy_execution
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: health_checks
+        type: list
+        prompt: "Health check results for each service (service: healthy/degraded/unhealthy)"
+      - id: error_rate
+        type: text
+        prompt: "Error rate comparison: pre-deploy vs post-deploy"
+      - id: performance_impact
+        type: text
+        prompt: "Performance impact assessment: improved, neutral, or degraded"
+      - id: monitoring_alerts
+        type: list
+        prompt: "Any monitoring alerts triggered after deployment"
+      - id: deploy_verdict
+        type: text
+        prompt: "Deployment verdict: successful, partial, or failed"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary
