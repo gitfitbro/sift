@@ -1,12 +1,13 @@
 """Export and import commands for sessions and templates."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import typer
 
-from sift.ui import console
 from sift.completions import complete_session_name, complete_template_name
+from sift.ui import console
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -15,8 +16,12 @@ app = typer.Typer(no_args_is_help=True)
 def export_session(
     session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
     format: str = typer.Option("zip", "--format", "-f", help="Export format: zip, json, yaml"),
-    output: str = typer.Option(None, "--output", "-o", help="Output directory (default: current dir)"),
-    include_audio: bool = typer.Option(False, "--include-audio", help="Include audio files in ZIP export"),
+    output: str = typer.Option(
+        None, "--output", "-o", help="Output directory (default: current dir)"
+    ),
+    include_audio: bool = typer.Option(
+        False, "--include-audio", help="Include audio files in ZIP export"
+    ),
 ):
     """Export a session as a portable archive."""
     from sift.core.export_service import ExportService
@@ -26,7 +31,9 @@ def export_session(
 
     try:
         svc = ExportService()
-        result = svc.export_session(session, format=format, output_dir=output_dir, include_audio=include_audio)
+        result = svc.export_session(
+            session, format=format, output_dir=output_dir, include_audio=include_audio
+        )
     except (SiftError, ValueError) as e:
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
@@ -39,7 +46,9 @@ def export_session(
 
 @app.command("template")
 def export_template(
-    template: str = typer.Argument(..., help="Template name", autocompletion=complete_template_name),
+    template: str = typer.Argument(
+        ..., help="Template name", autocompletion=complete_template_name
+    ),
     output: str = typer.Option(None, "--output", "-o", help="Output file path"),
 ):
     """Export a template as a YAML file."""
@@ -79,7 +88,9 @@ def import_session(
         console.print(f"[red]{e}[/red]")
         raise typer.Exit(1)
 
-    console.print(f"[green]Imported session[/green] '{result.session_name}' ({result.phase_count} phases)")
+    console.print(
+        f"[green]Imported session[/green] '{result.session_name}' ({result.phase_count} phases)"
+    )
     if result.overwritten:
         console.print("  [yellow]Previous session was overwritten[/yellow]")
 

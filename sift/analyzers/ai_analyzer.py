@@ -4,13 +4,15 @@ Uses an AI provider to generate architecture summaries and
 template recommendations from project structure data.
 Falls back to heuristic recommendations when no provider is available.
 """
+
 from __future__ import annotations
 
 import logging
+
 import yaml
-from typing import Optional
 
 from sift.providers.base import AIProvider
+
 from .models import ProjectStructure, TemplateRecommendation
 
 logger = logging.getLogger(__name__)
@@ -76,7 +78,7 @@ def generate_architecture_summary(
 def generate_template_recommendation(
     structure: ProjectStructure,
     provider: AIProvider,
-) -> Optional[TemplateRecommendation]:
+) -> TemplateRecommendation | None:
     """Use AI to generate a session template recommendation."""
     user_prompt = _build_structure_prompt(structure)
     try:
@@ -106,8 +108,8 @@ def _build_structure_prompt(structure: ProjectStructure) -> str:
 
     if structure.languages:
         lang_str = ", ".join(
-            f"{lang}: {count}" for lang, count in
-            sorted(structure.languages.items(), key=lambda x: -x[1])[:8]
+            f"{lang}: {count}"
+            for lang, count in sorted(structure.languages.items(), key=lambda x: -x[1])[:8]
         )
         parts.append(f"Languages: {lang_str}")
 
@@ -133,7 +135,11 @@ def _build_structure_prompt(structure: ProjectStructure) -> str:
     if top_files:
         file_info = []
         for fa in top_files:
-            rel = fa.path.relative_to(structure.root_path) if fa.path.is_relative_to(structure.root_path) else fa.path
+            rel = (
+                fa.path.relative_to(structure.root_path)
+                if fa.path.is_relative_to(structure.root_path)
+                else fa.path
+            )
             info = f"  {rel} ({fa.language}, {fa.line_count} lines"
             if fa.functions:
                 info += f", {len(fa.functions)} functions"
@@ -141,18 +147,18 @@ def _build_structure_prompt(structure: ProjectStructure) -> str:
                 info += f", {len(fa.classes)} classes"
             info += ")"
             file_info.append(info)
-        parts.append(f"\nKey files:\n" + "\n".join(file_info))
+        parts.append("\nKey files:\n" + "\n".join(file_info))
 
     return "\n".join(parts)
 
 
-def _parse_template_yaml(raw: str, structure: ProjectStructure) -> Optional[TemplateRecommendation]:
+def _parse_template_yaml(raw: str, structure: ProjectStructure) -> TemplateRecommendation | None:
     """Parse AI-generated YAML into a TemplateRecommendation."""
     # Strip markdown fences if present
     cleaned = raw
     if "```" in cleaned:
         lines = cleaned.split("\n")
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [line for line in lines if not line.strip().startswith("```")]
         cleaned = "\n".join(lines)
 
     try:
@@ -170,7 +176,7 @@ def _parse_template_yaml(raw: str, structure: ProjectStructure) -> Optional[Temp
         description=data.get("description", f"Review template for {structure.name}"),
         phases=data.get("phases", []),
         rationale=f"AI-generated based on {structure.total_files} files across "
-                  f"{len(structure.languages)} languages",
+        f"{len(structure.languages)} languages",
     )
 
 
@@ -179,81 +185,111 @@ def _heuristic_recommendation(structure: ProjectStructure) -> TemplateRecommenda
     phases = []
 
     # Phase 1: Architecture overview (always)
-    phases.append({
-        "id": "architecture-overview",
-        "name": "Architecture Overview",
-        "prompt": f"Review the overall architecture of {structure.name}. "
-                  "Discuss the main components, data flow, and design patterns used.",
-        "capture": [{"type": "text", "required": True}],
-        "extract": [
-            {"id": "patterns", "type": "list", "prompt": "List the architectural patterns identified."},
-            {"id": "components", "type": "list", "prompt": "List the main components/modules."},
-        ],
-    })
+    phases.append(
+        {
+            "id": "architecture-overview",
+            "name": "Architecture Overview",
+            "prompt": f"Review the overall architecture of {structure.name}. "
+            "Discuss the main components, data flow, and design patterns used.",
+            "capture": [{"type": "text", "required": True}],
+            "extract": [
+                {
+                    "id": "patterns",
+                    "type": "list",
+                    "prompt": "List the architectural patterns identified.",
+                },
+                {"id": "components", "type": "list", "prompt": "List the main components/modules."},
+            ],
+        }
+    )
 
     # Phase 2: Dependency audit (if dependencies found)
     if structure.dependencies:
-        phases.append({
-            "id": "dependency-audit",
-            "name": "Dependency Audit",
-            "prompt": f"Review the {len(structure.dependencies)} dependencies. "
-                      "Identify any outdated, unused, or risky dependencies.",
-            "capture": [{"type": "text", "required": True}],
-            "extract": [
-                {"id": "risks", "type": "list", "prompt": "List dependency risks or concerns."},
-                {"id": "recommendations", "type": "list", "prompt": "List dependency recommendations."},
-            ],
-        })
+        phases.append(
+            {
+                "id": "dependency-audit",
+                "name": "Dependency Audit",
+                "prompt": f"Review the {len(structure.dependencies)} dependencies. "
+                "Identify any outdated, unused, or risky dependencies.",
+                "capture": [{"type": "text", "required": True}],
+                "extract": [
+                    {"id": "risks", "type": "list", "prompt": "List dependency risks or concerns."},
+                    {
+                        "id": "recommendations",
+                        "type": "list",
+                        "prompt": "List dependency recommendations.",
+                    },
+                ],
+            }
+        )
 
     # Phase 3: Code quality (always)
-    phases.append({
-        "id": "code-quality",
-        "name": "Code Quality Review",
-        "prompt": "Assess code quality: naming conventions, documentation coverage, "
-                  "complexity hotspots, and testing practices.",
-        "capture": [{"type": "text", "required": True}],
-        "extract": [
-            {"id": "issues", "type": "list", "prompt": "List code quality issues found."},
-            {"id": "strengths", "type": "list", "prompt": "List code quality strengths."},
-        ],
-    })
-
-    # Phase 4: Testing strategy (if test files detected)
-    has_tests = any(
-        "test" in str(fa.path).lower() for fa in structure.file_analyses
-    )
-    if has_tests:
-        phases.append({
-            "id": "testing-strategy",
-            "name": "Testing Strategy",
-            "prompt": "Review the testing approach: coverage, test types (unit, integration, e2e), "
-                      "and gaps in test coverage.",
+    phases.append(
+        {
+            "id": "code-quality",
+            "name": "Code Quality Review",
+            "prompt": "Assess code quality: naming conventions, documentation coverage, "
+            "complexity hotspots, and testing practices.",
             "capture": [{"type": "text", "required": True}],
             "extract": [
-                {"id": "coverage_gaps", "type": "list", "prompt": "List areas with missing test coverage."},
-                {"id": "test_quality", "type": "text", "prompt": "Assess overall test quality."},
+                {"id": "issues", "type": "list", "prompt": "List code quality issues found."},
+                {"id": "strengths", "type": "list", "prompt": "List code quality strengths."},
             ],
-        })
+        }
+    )
+
+    # Phase 4: Testing strategy (if test files detected)
+    has_tests = any("test" in str(fa.path).lower() for fa in structure.file_analyses)
+    if has_tests:
+        phases.append(
+            {
+                "id": "testing-strategy",
+                "name": "Testing Strategy",
+                "prompt": "Review the testing approach: coverage, test types (unit, integration, e2e), "
+                "and gaps in test coverage.",
+                "capture": [{"type": "text", "required": True}],
+                "extract": [
+                    {
+                        "id": "coverage_gaps",
+                        "type": "list",
+                        "prompt": "List areas with missing test coverage.",
+                    },
+                    {
+                        "id": "test_quality",
+                        "type": "text",
+                        "prompt": "Assess overall test quality.",
+                    },
+                ],
+            }
+        )
 
     # Phase 5: Action items (always)
-    phases.append({
-        "id": "action-items",
-        "name": "Action Items & Recommendations",
-        "prompt": "Summarize findings and prioritize action items for improvement.",
-        "capture": [{"type": "text", "required": True}],
-        "extract": [
-            {"id": "priorities", "type": "list", "prompt": "List prioritized action items."},
-            {"id": "quick_wins", "type": "list", "prompt": "List quick wins that can be done immediately."},
-        ],
-    })
+    phases.append(
+        {
+            "id": "action-items",
+            "name": "Action Items & Recommendations",
+            "prompt": "Summarize findings and prioritize action items for improvement.",
+            "capture": [{"type": "text", "required": True}],
+            "extract": [
+                {"id": "priorities", "type": "list", "prompt": "List prioritized action items."},
+                {
+                    "id": "quick_wins",
+                    "type": "list",
+                    "prompt": "List quick wins that can be done immediately.",
+                },
+            ],
+        }
+    )
 
-    primary_lang = max(structure.languages, key=structure.languages.get) if structure.languages else "unknown"
+    primary_lang = (
+        max(structure.languages, key=structure.languages.get) if structure.languages else "unknown"
+    )
 
     return TemplateRecommendation(
         template_name=f"{structure.name}-review",
         description=f"Code review template for {structure.name} ({primary_lang} project)",
         phases=phases,
         rationale=f"Heuristic template based on {structure.total_files} files, "
-                  f"{len(structure.dependencies)} dependencies, "
-                  f"primary language: {primary_lang}",
+        f"{len(structure.dependencies)} dependencies, "
+        f"primary language: {primary_lang}",
     )

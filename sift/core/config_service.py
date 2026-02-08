@@ -7,6 +7,7 @@ Priority (highest to lowest):
 4. Global config (~/.config/sift/config.toml)
 5. Built-in defaults
 """
+
 from __future__ import annotations
 
 import copy
@@ -15,7 +16,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("sift.config")
 
@@ -62,7 +63,7 @@ except ImportError:
             elif isinstance(value, list):
                 items = ", ".join(f'"{v}"' if isinstance(v, str) else str(v) for v in value)
                 lines.append(f"{key} = [{items}]")
-        for key, value, full_key in tables:
+        for _key, value, full_key in tables:
             lines.append(f"\n[{full_key}]")
             _write_toml_section(value, lines, prefix=full_key)
 
@@ -174,9 +175,10 @@ def _set_nested(data: dict, dotted_key: str, value: Any) -> None:
 @dataclass
 class ResolvedConfig:
     """Fully resolved configuration after merging all layers."""
+
     data: dict = field(default_factory=dict)
-    global_config_path: Optional[Path] = None
-    project_config_path: Optional[Path] = None
+    global_config_path: Path | None = None
+    project_config_path: Path | None = None
 
     def get(self, dotted_key: str, default: Any = None) -> Any:
         """Get a config value using dotted key notation."""
@@ -194,7 +196,7 @@ class ConfigService:
     """
 
     def __init__(self):
-        self._resolved: Optional[ResolvedConfig] = None
+        self._resolved: ResolvedConfig | None = None
 
     def resolve(self, force: bool = False) -> ResolvedConfig:
         """Resolve the full config from all layers."""
@@ -244,7 +246,7 @@ class ConfigService:
         """Get the active provider name."""
         return self.get("providers.default", "anthropic")
 
-    def get_provider_model(self, provider: Optional[str] = None) -> str:
+    def get_provider_model(self, provider: str | None = None) -> str:
         """Get the model for a provider."""
         provider = provider or self.get_provider_name()
         return self.get(f"providers.{provider}.model", "")
@@ -307,8 +309,12 @@ class ConfigService:
         result = {
             "resolved": resolved.data,
             "sources": {
-                "global_config": str(resolved.global_config_path) if resolved.global_config_path else None,
-                "project_config": str(resolved.project_config_path) if resolved.project_config_path else None,
+                "global_config": str(resolved.global_config_path)
+                if resolved.global_config_path
+                else None,
+                "project_config": str(resolved.project_config_path)
+                if resolved.project_config_path
+                else None,
             },
         }
         return result
@@ -327,7 +333,7 @@ class ConfigService:
 
 
 # Module-level singleton
-_config_service: Optional[ConfigService] = None
+_config_service: ConfigService | None = None
 
 
 def get_config_service() -> ConfigService:

@@ -1,10 +1,9 @@
 """Shared fixtures for sift tests."""
-import os
-import shutil
-import yaml
-import pytest
-from pathlib import Path
+
 from unittest.mock import MagicMock
+
+import pytest
+import yaml
 
 
 @pytest.fixture(autouse=True)
@@ -24,14 +23,16 @@ def sift_home(tmp_path, monkeypatch):
 
     # Force re-evaluation of paths in sift.models
     import sift.models as models
+
     monkeypatch.setattr(models, "BASE_DIR", home)
     monkeypatch.setattr(models, "TEMPLATES_DIR", home / "templates")
     monkeypatch.setattr(models, "SESSIONS_DIR", home / "sessions")
 
     # Also patch the local references imported into service modules
+    import sift.core.export_service as export_svc
     import sift.core.session_service as session_svc
     import sift.core.template_service as template_svc
-    import sift.core.export_service as export_svc
+
     monkeypatch.setattr(session_svc, "SESSIONS_DIR", home / "sessions")
     monkeypatch.setattr(template_svc, "TEMPLATES_DIR", home / "templates")
     monkeypatch.setattr(export_svc, "SESSIONS_DIR", home / "sessions")
@@ -39,6 +40,7 @@ def sift_home(tmp_path, monkeypatch):
 
     # Reset the config service singleton so each test gets a fresh instance
     from sift.core.config_service import reset_config_service
+
     reset_config_service()
 
     return home
@@ -106,6 +108,7 @@ def sample_template_path(sift_home):
 def sample_template(sample_template_path):
     """Load and return a sample SessionTemplate."""
     from sift.models import SessionTemplate
+
     return SessionTemplate.from_file(sample_template_path)
 
 
@@ -113,6 +116,7 @@ def sample_template(sample_template_path):
 def sample_session(sample_template):
     """Create and return a sample Session."""
     from sift.models import Session
+
     return Session.create("test-session", sample_template)
 
 

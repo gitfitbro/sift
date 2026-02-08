@@ -1,9 +1,10 @@
 """Phase panel widget - displays phase details with prompt and fields."""
+
 from __future__ import annotations
 
-from textual.widget import Widget
-from textual.reactive import reactive
 from rich.text import Text
+from textual.reactive import reactive
+from textual.widget import Widget
 
 from sift.tui.theme import ICONS, STATUS_COLORS
 
@@ -20,7 +21,7 @@ class PhasePanel(Widget):
 
     def render(self) -> Text:
         icon = ICONS.get(self.phase_status, ICONS["pending"])
-        color = STATUS_COLORS.get(self.phase_status, "grey50")
+        color = STATUS_COLORS.get(self.phase_status, "#808080")
 
         result = Text()
 

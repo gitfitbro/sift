@@ -1,12 +1,14 @@
 """Build service - business logic for generating outputs from sessions."""
+
 from __future__ import annotations
 
 import logging
-import yaml
 from pathlib import Path
 
+import yaml
+
 from sift.core import BuildResult
-from sift.models import ensure_dirs, Session
+from sift.models import Session, ensure_dirs
 
 logger = logging.getLogger("sift.core.build")
 
@@ -14,9 +16,7 @@ logger = logging.getLogger("sift.core.build")
 class BuildService:
     """Generates outputs from completed session data."""
 
-    def generate_outputs(
-        self, session_name: str, format: str = "all"
-    ) -> BuildResult:
+    def generate_outputs(self, session_name: str, format: str = "all") -> BuildResult:
         """Generate outputs from a session's extracted data.
 
         Args:
@@ -50,6 +50,7 @@ class BuildService:
 
         if not all_data:
             from sift.errors import ExtractionError
+
             raise ExtractionError(
                 "No extracted data found. Run extraction first.",
                 session_name=session_name,
@@ -62,7 +63,8 @@ class BuildService:
             config_path = output_dir / "session-config.yaml"
             with open(config_path, "w") as f:
                 yaml.dump(
-                    config, f,
+                    config,
+                    f,
                     default_flow_style=False,
                     sort_keys=False,
                     allow_unicode=True,
@@ -80,7 +82,8 @@ class BuildService:
             con_path = output_dir / "extracted-data.yaml"
             with open(con_path, "w") as f:
                 yaml.dump(
-                    consolidated, f,
+                    consolidated,
+                    f,
                     default_flow_style=False,
                     sort_keys=False,
                     allow_unicode=True,
@@ -89,7 +92,8 @@ class BuildService:
 
         logger.info(
             "Generated %d outputs for session '%s'",
-            len(generated), session_name,
+            len(generated),
+            session_name,
         )
 
         return BuildResult(generated_files=generated, output_dir=output_dir)
@@ -122,12 +126,14 @@ class BuildService:
 
         if not session_data:
             from sift.errors import ExtractionError
+
             raise ExtractionError(
                 "No data to summarize.",
                 session_name=session_name,
             )
 
         from sift.engine import generate_summary
+
         summary = generate_summary(session_data, tmpl.name)
 
         output_dir = s.dir / "outputs"
@@ -154,20 +160,20 @@ class BuildService:
         for pt in tmpl.phases:
             ps = s.phases.get(pt.id)
             if ps and ps.status in ("extracted", "complete"):
-                config["phases_completed"].append({
-                    "id": pt.id,
-                    "name": pt.name,
-                    "captured_at": ps.captured_at,
-                    "extracted_at": ps.extracted_at,
-                })
+                config["phases_completed"].append(
+                    {
+                        "id": pt.id,
+                        "name": pt.name,
+                        "captured_at": ps.captured_at,
+                        "extracted_at": ps.extracted_at,
+                    }
+                )
             if pt.id in all_data:
                 config["data"][pt.id] = all_data[pt.id]
 
         return config
 
-    def _build_markdown(
-        self, s: Session, tmpl, all_data: dict, all_transcripts: dict
-    ) -> str:
+    def _build_markdown(self, s: Session, tmpl, all_data: dict, all_transcripts: dict) -> str:
         """Build a markdown summary document."""
         lines = [
             f"# {tmpl.name}: Session Summary",
@@ -227,9 +233,7 @@ class BuildService:
                 lines.append("```")
                 lines.append(transcript[:3000])
                 if len(transcript) > 3000:
-                    lines.append(
-                        f"\n... [truncated, {len(transcript)} total chars]"
-                    )
+                    lines.append(f"\n... [truncated, {len(transcript)} total chars]")
                 lines.append("```")
                 lines.append("")
 
@@ -245,7 +249,7 @@ class BuildService:
             }
         }
 
-        for phase_id, data in all_data.items():
+        for _phase_id, data in all_data.items():
             if isinstance(data, dict):
                 for k, v in data.items():
                     if not k.startswith("_"):

@@ -1,4 +1,5 @@
 """Tests for the export/import service."""
+
 from __future__ import annotations
 
 import json
@@ -7,7 +8,7 @@ import zipfile
 import pytest
 import yaml
 
-from sift.core.export_service import ExportService, ExportResult, ImportResult
+from sift.core.export_service import ExportResult, ExportService, ImportResult
 
 
 @pytest.fixture
@@ -20,6 +21,7 @@ def session_with_data(sample_template_path, sift_home):
 
     # Write a transcript
     from sift.models import Session
+
     session = Session.load("export-test")
     phase_id = list(session.phases.keys())[0]
 
@@ -187,6 +189,7 @@ class TestImportZip:
 
         # Delete original
         import shutil
+
         shutil.rmtree(sift_home / "sessions" / "export-test")
 
         # Import
@@ -198,6 +201,7 @@ class TestImportZip:
 
         # Verify data is intact
         from sift.models import Session
+
         session = Session.load("export-test")
         phase_id = list(session.phases.keys())[0]
         transcript = session.get_transcript(phase_id)
@@ -229,6 +233,7 @@ class TestImportJson:
 
         # Delete original
         import shutil
+
         shutil.rmtree(sift_home / "sessions" / "export-test")
 
         # Import
@@ -239,6 +244,7 @@ class TestImportJson:
 
         # Verify transcript is restored
         from sift.models import Session
+
         session = Session.load("export-test")
         phase_id = list(session.phases.keys())[0]
         assert session.get_transcript(phase_id) == "This is a test transcript for export."
@@ -248,11 +254,13 @@ class TestImportJson:
         export_result = svc.export_session("export-test", format="json", output_dir=tmp_path)
 
         import shutil
+
         shutil.rmtree(sift_home / "sessions" / "export-test")
 
         svc.import_session(export_result.output_path)
 
         from sift.models import Session
+
         session = Session.load("export-test")
         phase_id = list(session.phases.keys())[0]
         extracted = session.get_extracted(phase_id)
@@ -269,6 +277,7 @@ class TestImportYaml:
         export_result = svc.export_session("export-test", format="yaml", output_dir=tmp_path)
 
         import shutil
+
         shutil.rmtree(sift_home / "sessions" / "export-test")
 
         import_result = svc.import_session(export_result.output_path)

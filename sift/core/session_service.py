@@ -1,20 +1,27 @@
 """Session management service - business logic for session operations."""
+
 from __future__ import annotations
 
 import logging
-import yaml
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+
+import yaml
 
 from sift.core import (
-    SessionInfo, SessionDetail, PhaseDetail, ExportData,
-)
-from sift.models import (
-    SESSIONS_DIR, ensure_dirs,
-    SessionTemplate, Session, merge_templates,
+    ExportData,
+    PhaseDetail,
+    SessionDetail,
+    SessionInfo,
 )
 from sift.core.template_service import TemplateService
+from sift.models import (
+    SESSIONS_DIR,
+    Session,
+    SessionTemplate,
+    ensure_dirs,
+    merge_templates,
+)
 
 logger = logging.getLogger("sift.core.session")
 
@@ -25,9 +32,7 @@ class SessionService:
     def __init__(self):
         self._template_svc = TemplateService()
 
-    def create_session(
-        self, template_arg: str, name: Optional[str] = None
-    ) -> SessionDetail:
+    def create_session(self, template_arg: str, name: str | None = None) -> SessionDetail:
         """Create a new session from a template argument.
 
         The template_arg supports '+' syntax for combining templates.
@@ -79,44 +84,45 @@ class SessionService:
         """List all sessions sorted by most recently updated."""
         ensure_dirs()
 
-        session_dirs = [
-            d for d in SESSIONS_DIR.iterdir()
-            if d.is_dir() and (d / "session.yaml").exists()
-        ] if SESSIONS_DIR.exists() else []
+        session_dirs = (
+            [d for d in SESSIONS_DIR.iterdir() if d.is_dir() and (d / "session.yaml").exists()]
+            if SESSIONS_DIR.exists()
+            else []
+        )
 
         results = []
         for sd in sorted(session_dirs, key=lambda d: d.stat().st_mtime, reverse=True):
             try:
                 s = Session.load(sd.name)
                 total = len(s.phases)
-                done = sum(
-                    1 for p in s.phases.values()
-                    if p.status in ("extracted", "complete")
-                )
+                done = sum(1 for p in s.phases.values() if p.status in ("extracted", "complete"))
                 in_prog = sum(
-                    1 for p in s.phases.values()
-                    if p.status in ("captured", "transcribed")
+                    1 for p in s.phases.values() if p.status in ("captured", "transcribed")
                 )
-                results.append(SessionInfo(
-                    name=s.name,
-                    template_name=s.template_name,
-                    status=s.status,
-                    total_phases=total,
-                    done_phases=done,
-                    in_progress_phases=in_prog,
-                    updated_at=s.updated_at,
-                ))
+                results.append(
+                    SessionInfo(
+                        name=s.name,
+                        template_name=s.template_name,
+                        status=s.status,
+                        total_phases=total,
+                        done_phases=done,
+                        in_progress_phases=in_prog,
+                        updated_at=s.updated_at,
+                    )
+                )
             except Exception as e:
                 logger.warning("Failed to load session %s: %s", sd.name, e)
-                results.append(SessionInfo(
-                    name=sd.name,
-                    template_name="?",
-                    status="error",
-                    total_phases=0,
-                    done_phases=0,
-                    in_progress_phases=0,
-                    updated_at="",
-                ))
+                results.append(
+                    SessionInfo(
+                        name=sd.name,
+                        template_name="?",
+                        status="error",
+                        total_phases=0,
+                        done_phases=0,
+                        in_progress_phases=0,
+                        updated_at="",
+                    )
+                )
 
         return results
 
@@ -169,7 +175,8 @@ class SessionService:
             out_path = output_dir / f"{session_name}-export.yaml"
             with open(out_path, "w") as f:
                 yaml.dump(
-                    export, f,
+                    export,
+                    f,
                     default_flow_style=False,
                     sort_keys=False,
                     allow_unicode=True,
@@ -184,8 +191,7 @@ class SessionService:
         if not SESSIONS_DIR.exists():
             return []
         return sorted(
-            d.name for d in SESSIONS_DIR.iterdir()
-            if d.is_dir() and (d / "session.yaml").exists()
+            d.name for d in SESSIONS_DIR.iterdir() if d.is_dir() and (d / "session.yaml").exists()
         )
 
     def get_phase_ids(self, session_name: str) -> list[str]:
@@ -214,23 +220,22 @@ class SessionService:
         phases = []
         for pt in tmpl.phases:
             ps = s.phases.get(pt.id)
-            phases.append(PhaseDetail(
-                id=pt.id,
-                name=pt.name,
-                status=ps.status if ps else "pending",
-                has_audio=bool(ps and ps.audio_file),
-                has_transcript=bool(ps and ps.transcript_file),
-                has_extracted=bool(ps and ps.extracted_file),
-                captured_at=ps.captured_at if ps else None,
-                source_document=ps.source_document if ps else None,
-                source_pages=ps.source_pages if ps else None,
-            ))
+            phases.append(
+                PhaseDetail(
+                    id=pt.id,
+                    name=pt.name,
+                    status=ps.status if ps else "pending",
+                    has_audio=bool(ps and ps.audio_file),
+                    has_transcript=bool(ps and ps.transcript_file),
+                    has_extracted=bool(ps and ps.extracted_file),
+                    captured_at=ps.captured_at if ps else None,
+                    source_document=ps.source_document if ps else None,
+                    source_pages=ps.source_pages if ps else None,
+                )
+            )
 
         total = len(s.phases)
-        done = sum(
-            1 for p in s.phases.values()
-            if p.status in ("extracted", "complete")
-        )
+        done = sum(1 for p in s.phases.values() if p.status in ("extracted", "complete"))
 
         # Determine next action
         next_action = None

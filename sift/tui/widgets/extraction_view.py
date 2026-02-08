@@ -1,8 +1,8 @@
 """Extraction view widget - displays extracted data in a table."""
+
 from __future__ import annotations
 
 from textual.widgets import DataTable
-from textual.reactive import reactive
 
 
 class ExtractionView(DataTable):
@@ -33,7 +33,8 @@ class ExtractionView(DataTable):
             if isinstance(value, list):
                 if value:
                     display = "\n".join(
-                        f"\u2022 {item}" if not isinstance(item, dict)
+                        f"\u2022 {item}"
+                        if not isinstance(item, dict)
                         else "\u2022 " + ", ".join(f"{k}: {v}" for k, v in item.items())
                         for item in value[:8]
                     )

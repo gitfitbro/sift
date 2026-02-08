@@ -14,6 +14,7 @@ Entry point groups:
     sift.analyzers          - Project analysis strategies
     sift.output_formatters  - Output format handlers
 """
+
 from __future__ import annotations
 
 import logging
@@ -34,6 +35,7 @@ ALL_GROUPS = [PROVIDER_GROUP, ANALYZER_GROUP, FORMATTER_GROUP]
 @dataclass
 class PluginInfo:
     """Metadata about a discovered plugin."""
+
     name: str
     group: str
     module: str

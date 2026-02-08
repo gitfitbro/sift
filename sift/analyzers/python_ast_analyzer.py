@@ -3,6 +3,7 @@
 Provides deep analysis of Python files: functions, classes, imports,
 docstring coverage, and a simple complexity score.
 """
+
 from __future__ import annotations
 
 import ast
@@ -58,8 +59,9 @@ def analyze_python_file(path: Path) -> FileAnalysis:
         elif isinstance(node, ast.ImportFrom):
             if node.module:
                 imports.append(node.module)
-        elif isinstance(node, ast.If | ast.For | ast.While | ast.Try
-                         | ast.With | ast.ExceptHandler):
+        elif isinstance(
+            node, ast.If | ast.For | ast.While | ast.Try | ast.With | ast.ExceptHandler
+        ):
             branch_count += 1
 
     doc_coverage = (documented / total_documentable) if total_documentable > 0 else 0.0

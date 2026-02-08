@@ -1,7 +1,5 @@
 """Tests for internationalization support."""
 
-import pytest
-
 from sift.i18n import _, ngettext, setup_i18n
 
 

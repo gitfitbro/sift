@@ -1,10 +1,11 @@
 """Plugin listing command."""
+
 from __future__ import annotations
 
 import typer
 from rich.table import Table
 
-from sift.ui import console, ICONS
+from sift.ui import ICONS, console
 
 app = typer.Typer(no_args_is_help=False)
 
@@ -23,7 +24,7 @@ def plugins(
     formatters: bool = typer.Option(False, "--formatters", help="Show formatter plugins only"),
 ):
     """List all discovered plugins."""
-    from sift.plugins import list_all_plugins, PROVIDER_GROUP, ANALYZER_GROUP, FORMATTER_GROUP
+    from sift.plugins import ANALYZER_GROUP, FORMATTER_GROUP, PROVIDER_GROUP, list_all_plugins
 
     all_plugins = list_all_plugins()
 
@@ -50,7 +51,11 @@ def plugins(
         if plugin.loaded:
             status = ICONS.get("complete", "[green]OK[/green]")
         else:
-            status = f"[red]{plugin.error[:40]}[/red]" if plugin.error else ICONS.get("error", "[red]ERR[/red]")
+            status = (
+                f"[red]{plugin.error[:40]}[/red]"
+                if plugin.error
+                else ICONS.get("error", "[red]ERR[/red]")
+            )
         table.add_row(plugin.name, type_label, plugin.module, status)
 
     console.print(table)

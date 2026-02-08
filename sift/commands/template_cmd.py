@@ -1,12 +1,14 @@
 """Template management commands - thin CLI wrappers over TemplateService."""
-import typer
-import yaml
+
 from pathlib import Path
+
+import typer
 from rich.table import Table
-from sift.ui import console
-from sift.core.template_service import TemplateService
+
 from sift.completions import complete_template_name
+from sift.core.template_service import TemplateService
 from sift.error_handler import handle_errors
+from sift.ui import console
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -21,7 +23,7 @@ def list_templates():
 
     if not templates:
         console.print("[yellow]No templates found.[/yellow]")
-        console.print(f"Add templates to the templates directory.")
+        console.print("Add templates to the templates directory.")
         console.print("Or run: sift template init")
         return
 
@@ -44,7 +46,9 @@ def list_templates():
 
 @app.command("show")
 @handle_errors
-def show_template(name: str = typer.Argument(..., help="Template name", autocompletion=complete_template_name)):
+def show_template(
+    name: str = typer.Argument(..., help="Template name", autocompletion=complete_template_name),
+):
     """Show details of a template."""
     detail = _svc.show_template(name)
 
@@ -101,7 +105,7 @@ def init_template():
 
         # Extraction fields
         extractions = []
-        console.print(f"  [dim]Define extraction fields (empty ID to finish)[/dim]")
+        console.print("  [dim]Define extraction fields (empty ID to finish)[/dim]")
         while True:
             field_id = typer.prompt("    Field ID", default="")
             if not field_id:
@@ -112,11 +116,13 @@ def init_template():
                 type=typer.Choice(["list", "map", "text", "boolean"]),
             )
             field_prompt = typer.prompt("    Extraction prompt")
-            extractions.append({
-                "id": field_id,
-                "type": field_type,
-                "prompt": field_prompt,
-            })
+            extractions.append(
+                {
+                    "id": field_id,
+                    "type": field_type,
+                    "prompt": field_prompt,
+                }
+            )
 
         phase = {
             "id": phase_id,

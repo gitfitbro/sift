@@ -1,10 +1,12 @@
 """Tests for ExtractionService."""
+
+from unittest.mock import patch
+
 import pytest
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+
 from sift.core.extraction_service import ExtractionService
+from sift.errors import CaptureError, ExtractionError, PhaseNotFoundError, SessionNotFoundError
 from sift.models import Session
-from sift.errors import CaptureError, PhaseNotFoundError, SessionNotFoundError, ExtractionError
 
 
 class TestCaptureText:
@@ -121,6 +123,7 @@ class TestExtractPhase:
             yaml.dump(tmpl_data, f)
 
         from sift.core.session_service import SessionService
+
         ssvc = SessionService()
         ssvc.create_session("no-extract", name="ne-test")
 

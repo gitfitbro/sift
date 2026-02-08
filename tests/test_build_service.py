@@ -1,10 +1,12 @@
 """Tests for BuildService."""
-import pytest
+
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+import pytest
+
 from sift.core.build_service import BuildService
 from sift.core.extraction_service import ExtractionService
-from sift.models import Session
 from sift.errors import ExtractionError, SessionNotFoundError
 
 

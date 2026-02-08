@@ -1,4 +1,5 @@
 """Data models for project analysis results."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -8,6 +9,7 @@ from pathlib import Path
 @dataclass
 class FileAnalysis:
     """Analysis result for a single source file."""
+
     path: Path
     language: str
     line_count: int
@@ -21,6 +23,7 @@ class FileAnalysis:
 @dataclass
 class DependencyInfo:
     """A project dependency detected from manifest files."""
+
     name: str
     version: str = ""
     source: str = ""  # e.g. "pyproject.toml", "package.json"
@@ -29,6 +32,7 @@ class DependencyInfo:
 @dataclass
 class ProjectStructure:
     """Complete analysis of a software project."""
+
     root_path: Path
     name: str
     languages: dict[str, int] = field(default_factory=dict)  # language -> file count
@@ -45,6 +49,7 @@ class ProjectStructure:
 @dataclass
 class TemplateRecommendation:
     """A recommended sift session template based on project analysis."""
+
     template_name: str
     description: str
     phases: list[dict] = field(default_factory=list)

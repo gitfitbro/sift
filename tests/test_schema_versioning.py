@@ -1,10 +1,14 @@
 """Tests for schema versioning in session and template YAML files."""
+
 import pytest
 import yaml
+
 from sift.errors import SchemaVersionError, SessionNotFoundError
 from sift.models import (
-    Session, SessionTemplate,
-    SCHEMA_VERSION_SESSION, SCHEMA_VERSION_TEMPLATE,
+    SCHEMA_VERSION_SESSION,
+    SCHEMA_VERSION_TEMPLATE,
+    Session,
+    SessionTemplate,
 )
 
 

@@ -6,13 +6,12 @@ Usage:
     Claude Desktop: {"mcpServers": {"sift": {"command": "sift-mcp"}}}
     Claude Code:    claude mcp add sift -- sift-mcp
 """
+
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 
@@ -66,7 +65,7 @@ async def sift_list_templates() -> dict:
 @mcp.tool()
 async def sift_create_session(
     template: str,
-    name: Optional[str] = None,
+    name: str | None = None,
 ) -> dict:
     """Create a new sift session from a template.
 
@@ -75,7 +74,6 @@ async def sift_create_session(
         name: Optional session name. Auto-generated if omitted.
     """
     from sift.core.session_service import SessionService
-
     from sift.errors import SiftError
 
     svc = SessionService()
@@ -104,7 +102,6 @@ async def sift_session_status(session_name: str) -> dict:
         session_name: Name of the session to inspect.
     """
     from sift.core.session_service import SessionService
-
     from sift.errors import SiftError
 
     svc = SessionService()
@@ -134,7 +131,6 @@ async def sift_capture_text(
         text: The text content to capture.
     """
     from sift.core.extraction_service import ExtractionService
-
     from sift.errors import SiftError
 
     svc = ExtractionService()
@@ -159,7 +155,6 @@ async def sift_extract_phase(
         phase_id: ID of the phase to extract from.
     """
     from sift.core.extraction_service import ExtractionService
-
     from sift.errors import SiftError
 
     svc = ExtractionService()
@@ -187,7 +182,6 @@ async def sift_build_outputs(
         format: Output format - "yaml", "markdown", or "all".
     """
     from sift.core.build_service import BuildService
-
     from sift.errors import SiftError
 
     svc = BuildService()
@@ -197,8 +191,7 @@ async def sift_build_outputs(
             "status": "ok",
             "output_dir": str(result.output_dir),
             "files": [
-                {"label": label, "path": str(path)}
-                for label, path in result.generated_files
+                {"label": label, "path": str(path)} for label, path in result.generated_files
             ],
         }
     except SiftError as e:
@@ -230,6 +223,7 @@ async def sift_analyze_project(
     if include_ai_summary:
         try:
             from sift.providers import get_provider
+
             provider = get_provider()
         except Exception:
             logger.warning("AI provider not available for summary")
@@ -267,7 +261,6 @@ async def sift_export_session(session_name: str) -> dict:
         session_name: Name of the session to export.
     """
     from sift.core.session_service import SessionService
-
     from sift.errors import SiftError
 
     svc = SessionService()

@@ -1,11 +1,13 @@
 """AI engine for transcription and structured extraction."""
+
 from __future__ import annotations
+
 import logging
-import os
-import yaml
 import subprocess
 from pathlib import Path
-from typing import Optional
+
+import yaml
+
 from sift.providers import get_provider
 
 logger = logging.getLogger("sift.engine")
@@ -70,7 +72,8 @@ def transcribe_audio(audio_path: Path) -> str:
 def _whisper_available() -> bool:
     """Check if local whisper is installed."""
     try:
-        import whisper
+        import whisper  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -119,9 +122,7 @@ def extract_structured_data(
     # Build the extraction prompt
     field_descriptions = []
     for f in extraction_fields:
-        field_descriptions.append(
-            f"- **{f['id']}** (type: {f['type']}): {f['prompt']}"
-        )
+        field_descriptions.append(f"- **{f['id']}** (type: {f['type']}): {f['prompt']}")
 
     fields_text = "\n".join(field_descriptions)
 

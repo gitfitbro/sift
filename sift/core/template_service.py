@@ -1,13 +1,15 @@
 """Template management service - business logic for template operations."""
+
 from __future__ import annotations
 
 import logging
 import shutil
-import yaml
 from pathlib import Path
 
-from sift.core import TemplateInfo, TemplateDetail, TemplatePhaseDetail
-from sift.models import TEMPLATES_DIR, ensure_dirs, SessionTemplate
+import yaml
+
+from sift.core import TemplateDetail, TemplateInfo, TemplatePhaseDetail
+from sift.models import TEMPLATES_DIR, SessionTemplate, ensure_dirs
 
 logger = logging.getLogger("sift.core.template")
 
@@ -18,30 +20,32 @@ class TemplateService:
     def list_templates(self) -> list[TemplateInfo]:
         """List all available templates."""
         ensure_dirs()
-        paths = sorted(
-            list(TEMPLATES_DIR.glob("*.yaml")) + list(TEMPLATES_DIR.glob("*.yml"))
-        )
+        paths = sorted(list(TEMPLATES_DIR.glob("*.yaml")) + list(TEMPLATES_DIR.glob("*.yml")))
 
         results = []
         for tp in paths:
             try:
                 t = SessionTemplate.from_file(tp)
-                results.append(TemplateInfo(
-                    name=t.name,
-                    stem=tp.stem,
-                    description=t.description,
-                    phase_count=len(t.phases),
-                    output_count=len(t.outputs),
-                ))
+                results.append(
+                    TemplateInfo(
+                        name=t.name,
+                        stem=tp.stem,
+                        description=t.description,
+                        phase_count=len(t.phases),
+                        output_count=len(t.outputs),
+                    )
+                )
             except Exception as e:
                 logger.warning("Failed to load template %s: %s", tp.stem, e)
-                results.append(TemplateInfo(
-                    name=tp.stem,
-                    stem=tp.stem,
-                    description=f"Error: {e}",
-                    phase_count=0,
-                    output_count=0,
-                ))
+                results.append(
+                    TemplateInfo(
+                        name=tp.stem,
+                        stem=tp.stem,
+                        description=f"Error: {e}",
+                        phase_count=0,
+                        output_count=0,
+                    )
+                )
         return results
 
     def show_template(self, name: str) -> TemplateDetail:
@@ -55,15 +59,17 @@ class TemplateService:
 
         phases = []
         for p in t.phases:
-            phases.append(TemplatePhaseDetail(
-                id=p.id,
-                name=p.name,
-                prompt=p.prompt,
-                capture_types=[c.type for c in p.capture],
-                required=any(c.required for c in p.capture),
-                extract_field_ids=[e.id for e in p.extract],
-                depends_on=p.depends_on,
-            ))
+            phases.append(
+                TemplatePhaseDetail(
+                    id=p.id,
+                    name=p.name,
+                    prompt=p.prompt,
+                    capture_types=[c.type for c in p.capture],
+                    required=any(c.required for c in p.capture),
+                    extract_field_ids=[e.id for e in p.extract],
+                    depends_on=p.depends_on,
+                )
+            )
 
         outputs = [{"type": o.type, "template": o.template} for o in t.outputs]
 
@@ -101,11 +107,13 @@ class TemplateService:
             SiftError: If template is invalid.
         """
         from sift.errors import CaptureError
+
         ensure_dirs()
         if not path.exists():
             raise CaptureError(f"File not found: {path}", file_path=str(path))
 
         from sift.errors import SiftError
+
         try:
             t = SessionTemplate.from_file(path)
         except SiftError:
@@ -142,6 +150,7 @@ class TemplateService:
     def _find_template_path(self, name: str) -> Path:
         """Find a template file by name."""
         from sift.errors import TemplateNotFoundError
+
         for ext in (".yaml", ".yml"):
             path = TEMPLATES_DIR / f"{name}{ext}"
             if path.exists():

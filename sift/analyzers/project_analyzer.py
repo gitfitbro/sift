@@ -3,46 +3,104 @@
 Discovers files, dispatches to the best analyzer (Python AST -> tree-sitter -> basic),
 detects dependencies, entry points, and frameworks, and builds a ProjectStructure.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 from pathlib import Path
-from typing import Optional
 
 from sift.providers.base import AIProvider
+
+from . import ai_analyzer, python_ast_analyzer, tree_sitter_analyzer
 from .models import DependencyInfo, FileAnalysis, ProjectStructure, TemplateRecommendation
-from . import python_ast_analyzer, tree_sitter_analyzer, ai_analyzer
 
 logger = logging.getLogger(__name__)
 
 # Directories to always skip
 SKIP_DIRS: set[str] = {
-    ".git", ".hg", ".svn",
-    "node_modules", ".node_modules",
-    "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache",
-    ".tox", ".nox", ".venv", "venv", "env", ".env",
-    "dist", "build", ".build", "target",
-    ".idea", ".vscode", ".vs",
-    ".next", ".nuxt", ".output",
-    "vendor", "Pods",
-    ".terraform", ".serverless",
-    "coverage", ".coverage", "htmlcov",
-    ".eggs", "*.egg-info",
+    ".git",
+    ".hg",
+    ".svn",
+    "node_modules",
+    ".node_modules",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".tox",
+    ".nox",
+    ".venv",
+    "venv",
+    "env",
+    ".env",
+    "dist",
+    "build",
+    ".build",
+    "target",
+    ".idea",
+    ".vscode",
+    ".vs",
+    ".next",
+    ".nuxt",
+    ".output",
+    "vendor",
+    "Pods",
+    ".terraform",
+    ".serverless",
+    "coverage",
+    ".coverage",
+    "htmlcov",
+    ".eggs",
+    "*.egg-info",
 }
 
 # File extensions to analyze
 SOURCE_EXTENSIONS: set[str] = {
-    ".py", ".js", ".jsx", ".ts", ".tsx",
-    ".go", ".rs", ".java", ".kt", ".rb",
-    ".c", ".h", ".cpp", ".cc", ".hpp", ".cs",
-    ".swift", ".php", ".scala", ".lua",
-    ".r", ".R", ".dart", ".ex", ".exs",
-    ".hs", ".ml", ".sh", ".bash", ".zsh",
-    ".sql", ".proto", ".zig",
-    ".yaml", ".yml", ".toml", ".json",
-    ".css", ".scss", ".html", ".htm",
-    ".md", ".rst", ".txt",
+    ".py",
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+    ".go",
+    ".rs",
+    ".java",
+    ".kt",
+    ".rb",
+    ".c",
+    ".h",
+    ".cpp",
+    ".cc",
+    ".hpp",
+    ".cs",
+    ".swift",
+    ".php",
+    ".scala",
+    ".lua",
+    ".r",
+    ".R",
+    ".dart",
+    ".ex",
+    ".exs",
+    ".hs",
+    ".ml",
+    ".sh",
+    ".bash",
+    ".zsh",
+    ".sql",
+    ".proto",
+    ".zig",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".json",
+    ".css",
+    ".scss",
+    ".html",
+    ".htm",
+    ".md",
+    ".rst",
+    ".txt",
 }
 
 # Max files to analyze in detail (avoid huge repos)
@@ -104,7 +162,7 @@ class ProjectAnalyzer:
     def analyze(
         self,
         project_path: Path,
-        provider: Optional[AIProvider] = None,
+        provider: AIProvider | None = None,
     ) -> ProjectStructure:
         """Analyze a project directory and return a ProjectStructure.
 
@@ -164,7 +222,8 @@ class ProjectAnalyzer:
         # Step 8: AI architecture summary (optional)
         if provider:
             structure.architecture_summary = ai_analyzer.generate_architecture_summary(
-                structure, provider,
+                structure,
+                provider,
             )
 
         return structure
@@ -172,7 +231,7 @@ class ProjectAnalyzer:
     def recommend_template(
         self,
         structure: ProjectStructure,
-        provider: Optional[AIProvider] = None,
+        provider: AIProvider | None = None,
     ) -> TemplateRecommendation:
         """Generate a session template recommendation for this project."""
         if provider:
@@ -188,7 +247,10 @@ class ProjectAnalyzer:
             if not item.is_file():
                 continue
             # Skip hidden files
-            if any(part.startswith(".") and part not in {".env"} for part in item.relative_to(root).parts):
+            if any(
+                part.startswith(".") and part not in {".env"}
+                for part in item.relative_to(root).parts
+            ):
                 if not any(part == ".github" for part in item.relative_to(root).parts):
                     continue
             # Skip blacklisted directories
@@ -213,7 +275,7 @@ class ProjectAnalyzer:
                 analyses.append(analysis)
         return analyses
 
-    def _analyze_single_file(self, path: Path) -> Optional[FileAnalysis]:
+    def _analyze_single_file(self, path: Path) -> FileAnalysis | None:
         """Pick the best analyzer for a file and run it."""
         # Python files: always use stdlib ast for deep analysis
         if python_ast_analyzer.can_analyze(path):
@@ -293,7 +355,14 @@ class ProjectAnalyzer:
                 data = tomllib.load(f)
 
             for dep_str in data.get("project", {}).get("dependencies", []):
-                name = dep_str.split(">")[0].split("<")[0].split("=")[0].split("!")[0].split("[")[0].strip()
+                name = (
+                    dep_str.split(">")[0]
+                    .split("<")[0]
+                    .split("=")[0]
+                    .split("!")[0]
+                    .split("[")[0]
+                    .strip()
+                )
                 deps.append(DependencyInfo(name=name, source="pyproject.toml"))
         except Exception as e:
             logger.warning("Failed to parse %s: %s", path, e)
@@ -313,7 +382,15 @@ class ProjectAnalyzer:
                 if in_deps:
                     if stripped == "]":
                         break
-                    name = stripped.strip('"').strip("',").split(">")[0].split("<")[0].split("=")[0].split("[")[0].strip()
+                    name = (
+                        stripped.strip('"')
+                        .strip("',")
+                        .split(">")[0]
+                        .split("<")[0]
+                        .split("=")[0]
+                        .split("[")[0]
+                        .strip()
+                    )
                     if name:
                         deps.append(DependencyInfo(name=name, source="pyproject.toml"))
         except Exception as e:
@@ -328,7 +405,14 @@ class ProjectAnalyzer:
                 line = line.strip()
                 if not line or line.startswith("#") or line.startswith("-"):
                     continue
-                name = line.split(">")[0].split("<")[0].split("=")[0].split("!")[0].split("[")[0].strip()
+                name = (
+                    line.split(">")[0]
+                    .split("<")[0]
+                    .split("=")[0]
+                    .split("!")[0]
+                    .split("[")[0]
+                    .strip()
+                )
                 if name:
                     deps.append(DependencyInfo(name=name, source="requirements.txt"))
         except Exception as e:
@@ -363,11 +447,15 @@ class ProjectAnalyzer:
                         continue
                     parts = stripped.split()
                     if len(parts) >= 2:
-                        deps.append(DependencyInfo(name=parts[0], version=parts[1], source="go.mod"))
+                        deps.append(
+                            DependencyInfo(name=parts[0], version=parts[1], source="go.mod")
+                        )
                 elif stripped.startswith("require "):
                     parts = stripped.split()
                     if len(parts) >= 3:
-                        deps.append(DependencyInfo(name=parts[1], version=parts[2], source="go.mod"))
+                        deps.append(
+                            DependencyInfo(name=parts[1], version=parts[2], source="go.mod")
+                        )
         except Exception as e:
             logger.warning("Failed to parse %s: %s", path, e)
         return deps
@@ -409,16 +497,31 @@ class ProjectAnalyzer:
         return deps
 
     def _detect_entry_points(
-        self, root: Path, analyses: list[FileAnalysis],
+        self,
+        root: Path,
+        analyses: list[FileAnalysis],
     ) -> list[str]:
         """Detect likely entry points from common patterns."""
         entry_points: list[str] = []
         candidates = [
-            "main.py", "__main__.py", "app.py", "cli.py", "manage.py",
-            "index.js", "index.ts", "main.js", "main.ts", "app.js", "app.ts",
-            "server.js", "server.ts",
-            "main.go", "cmd/main.go",
-            "main.rs", "src/main.rs", "src/lib.rs",
+            "main.py",
+            "__main__.py",
+            "app.py",
+            "cli.py",
+            "manage.py",
+            "index.js",
+            "index.ts",
+            "main.js",
+            "main.ts",
+            "app.js",
+            "app.ts",
+            "server.js",
+            "server.ts",
+            "main.go",
+            "cmd/main.go",
+            "main.rs",
+            "src/main.rs",
+            "src/lib.rs",
             "Program.cs",
         ]
         for candidate in candidates:
@@ -475,8 +578,12 @@ class ProjectAnalyzer:
         return "\n".join(lines)
 
     def _tree_walk(
-        self, root: Path, current: Path, lines: list[str],
-        depth: int, max_depth: int,
+        self,
+        root: Path,
+        current: Path,
+        lines: list[str],
+        depth: int,
+        max_depth: int,
     ) -> None:
         """Recursively build directory tree lines."""
         if depth > max_depth or len(lines) > TREE_MAX_ENTRIES:

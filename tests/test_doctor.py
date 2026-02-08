@@ -1,6 +1,7 @@
 """Tests for the sift doctor diagnostic command."""
-import pytest
+
 from typer.testing import CliRunner
+
 from sift.cli import app
 
 runner = CliRunner()

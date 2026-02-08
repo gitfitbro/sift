@@ -1,14 +1,17 @@
 """Interactive guided session runner."""
+
 from __future__ import annotations
+
 import typer
 from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
 from rich.table import Table
 from rich.text import Text
-from rich.prompt import Prompt, Confirm
-from sift.ui import console, ICONS, pipeline_view, step_header, section_divider, format_next_step
-from sift.models import ensure_dirs, Session
-from sift.core.extraction_service import ExtractionService
+
 from sift.core.build_service import BuildService
+from sift.core.extraction_service import ExtractionService
+from sift.models import Session, ensure_dirs
+from sift.ui import ICONS, console, format_next_step, pipeline_view, section_divider, step_header
 
 _extraction_svc = ExtractionService()
 _build_svc = BuildService()
@@ -19,11 +22,13 @@ def _build_phase_list(session: Session, template) -> list[dict]:
     phases = []
     for pt in template.phases:
         ps = session.phases.get(pt.id)
-        phases.append({
-            "id": pt.id,
-            "name": pt.name,
-            "status": ps.status if ps else "pending",
-        })
+        phases.append(
+            {
+                "id": pt.id,
+                "name": pt.name,
+                "status": ps.status if ps else "pending",
+            }
+        )
     return phases
 
 
@@ -43,12 +48,14 @@ def _show_session_header(session: Session, template):
         f"Progress: {progress_text}"
     )
 
-    console.print(Panel(
-        content,
-        title=f"[bold cyan]Session: {session.name}[/bold cyan]",
-        border_style="cyan",
-        padding=(1, 2),
-    ))
+    console.print(
+        Panel(
+            content,
+            title=f"[bold cyan]Session: {session.name}[/bold cyan]",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+    )
 
     console.print()
     pipeline_view(_build_phase_list(session, template))
@@ -80,7 +87,8 @@ def _show_extraction_summary(session: Session, phase_id: str, template):
         if isinstance(value, list):
             if value:
                 display = "\n".join(
-                    f"\u2022 {item}" if not isinstance(item, dict)
+                    f"\u2022 {item}"
+                    if not isinstance(item, dict)
                     else "\u2022 " + ", ".join(f"{k}: {v}" for k, v in item.items())
                     for item in value[:5]
                 )
@@ -184,13 +192,30 @@ def run_interactive(session_name: str, start_phase: str = None):
             console.print(f"  [dim]Will extract: {fields}[/dim]\n")
 
         # ── Capture ──
-        if ps and ps.status == "pending":
+        has_content = ps and ps.status not in ("pending",)
+        if ps and ps.status == "pending" or has_content:
+            append = False
+            if has_content:
+                console.print(
+                    "\n  [yellow]This phase already has content.[/yellow]"
+                )
+                add_action = Prompt.ask(
+                    "  Append more, replace, or skip?",
+                    choices=["append", "replace", "skip"],
+                    default="append",
+                )
+                if add_action == "skip":
+                    continue
+                append = add_action == "append"
+
             capture_types = [c.type for c in pt.capture] if pt.capture else ["text"]
 
             console.print("  How do you want to capture this phase?\n")
-            console.print(f"    [bold cyan]1[/bold cyan]  Upload a file [dim](audio, text, or PDF)[/dim]")
-            console.print(f"    [bold cyan]2[/bold cyan]  Type or paste text directly")
-            console.print(f"    [bold cyan]3[/bold cyan]  Skip for now")
+            console.print(
+                "    [bold cyan]1[/bold cyan]  Upload a file [dim](audio, text, or PDF)[/dim]"
+            )
+            console.print("    [bold cyan]2[/bold cyan]  Type or paste text directly")
+            console.print("    [bold cyan]3[/bold cyan]  Skip for now")
             console.print()
 
             action = Prompt.ask(
@@ -203,11 +228,16 @@ def run_interactive(session_name: str, start_phase: str = None):
                 file_path = Prompt.ask("  File path")
                 try:
                     from pathlib import Path
-                    _extraction_svc.capture_file(session_name, pt.id, Path(file_path))
+
+                    _extraction_svc.capture_file(
+                        session_name, pt.id, Path(file_path), append=append
+                    )
                 except Exception as e:
                     console.print(f"  [red]{e}[/red]")
             elif action == "2":
-                console.print("\n  [bold]Enter text.[/bold] [dim]Empty line + 'END' to finish.[/dim]\n")
+                console.print(
+                    "\n  [bold]Enter text.[/bold] [dim]Empty line + 'END' to finish.[/dim]\n"
+                )
                 lines = []
                 while True:
                     try:
@@ -215,18 +245,23 @@ def run_interactive(session_name: str, start_phase: str = None):
                         if line.strip() == "END":
                             break
                         lines.append(line)
-                    except EOFError:
+                    except (EOFError, KeyboardInterrupt):
+                        console.print()
                         break
                 text = "\n".join(lines)
                 if text.strip():
                     try:
-                        _extraction_svc.capture_text(session_name, pt.id, text)
+                        _extraction_svc.capture_text(
+                            session_name, pt.id, text, append=append
+                        )
                     except Exception as e:
                         console.print(f"  [red]{e}[/red]")
             else:
                 required = any(c.required for c in pt.capture)
                 if required:
-                    console.print("  [warning]This phase requires capture. You can come back later.[/warning]")
+                    console.print(
+                        "  [warning]This phase requires capture. You can come back later.[/warning]"
+                    )
                 else:
                     console.print("  [muted]Skipped.[/muted]")
                 continue
@@ -269,12 +304,11 @@ def run_interactive(session_name: str, start_phase: str = None):
 
         # Ask to continue
         remaining_phases = [
-            p for p in tmpl.phases
-            if s.phases[p.id].status not in ("extracted", "complete")
+            p for p in tmpl.phases if s.phases[p.id].status not in ("extracted", "complete")
         ]
         if remaining_phases and i < len(phases) - 1:
             if not Confirm.ask("Continue to next phase?", default=True):
-                console.print(f"\n  [dim]Session paused. Resume anytime:[/dim]")
+                console.print("\n  [dim]Session paused. Resume anytime:[/dim]")
                 format_next_step(f"sift run {session_name}")
                 return
 
@@ -294,13 +328,15 @@ def run_interactive(session_name: str, start_phase: str = None):
     if Confirm.ask("Generate AI summary?", default=True):
         try:
             with console.status("[bold]Generating AI summary...[/bold]"):
-                summary, path = _build_svc.generate_summary(session_name)
+                _summary, path = _build_svc.generate_summary(session_name)
             console.print(f"  [dim]Saved to: {path}[/dim]")
         except Exception as e:
             console.print(f"  [red]{e}[/red]")
 
     console.print()
-    console.print(Panel(
-        "[bold green]Session complete![/bold green]",
-        border_style="green",
-    ))
+    console.print(
+        Panel(
+            "[bold green]Session complete![/bold green]",
+            border_style="green",
+        )
+    )

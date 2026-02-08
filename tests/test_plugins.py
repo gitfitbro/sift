@@ -1,18 +1,17 @@
 """Tests for the plugin discovery system."""
+
 from __future__ import annotations
 
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, patch
 
 from sift.plugins import (
-    discover_plugins,
-    discover_providers,
-    list_all_plugins,
-    get_provider_names,
-    PROVIDER_GROUP,
     ANALYZER_GROUP,
     FORMATTER_GROUP,
-    PluginInfo,
+    PROVIDER_GROUP,
+    discover_plugins,
+    discover_providers,
+    get_provider_names,
+    list_all_plugins,
 )
 
 
@@ -75,7 +74,9 @@ class TestListAllPlugins:
 
     def test_lists_plugins_from_all_groups(self):
         """Should return PluginInfo for every entry point across groups."""
-        ep1 = _make_entry_point("anthropic", "sift.providers.anthropic_provider:AnthropicProvider", PROVIDER_GROUP)
+        ep1 = _make_entry_point(
+            "anthropic", "sift.providers.anthropic_provider:AnthropicProvider", PROVIDER_GROUP
+        )
         ep1.load.return_value = object
         ep2 = _make_entry_point("broken", "bad:Thing", ANALYZER_GROUP)
         ep2.load.side_effect = ImportError("no module")
@@ -103,9 +104,15 @@ class TestGetProviderNames:
     def test_returns_sorted_names(self):
         """Should return sorted list of provider names."""
         eps = [
-            _make_entry_point("ollama", "sift.providers.ollama_provider:OllamaProvider", PROVIDER_GROUP),
-            _make_entry_point("anthropic", "sift.providers.anthropic_provider:AnthropicProvider", PROVIDER_GROUP),
-            _make_entry_point("gemini", "sift.providers.gemini_provider:GeminiProvider", PROVIDER_GROUP),
+            _make_entry_point(
+                "ollama", "sift.providers.ollama_provider:OllamaProvider", PROVIDER_GROUP
+            ),
+            _make_entry_point(
+                "anthropic", "sift.providers.anthropic_provider:AnthropicProvider", PROVIDER_GROUP
+            ),
+            _make_entry_point(
+                "gemini", "sift.providers.gemini_provider:GeminiProvider", PROVIDER_GROUP
+            ),
         ]
         with patch("sift.plugins.entry_points", return_value=eps):
             names = get_provider_names()

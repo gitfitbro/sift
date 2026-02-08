@@ -1,11 +1,9 @@
 """Tests for telemetry consent manager and service."""
 
-import os
 import pytest
-from pathlib import Path
 
-from sift.telemetry.consent import ConsentManager, COLLECTED, NEVER_COLLECTED
-from sift.telemetry.service import CLITelemetry, get_telemetry, reset_telemetry, NoOpSpan
+from sift.telemetry.consent import COLLECTED, NEVER_COLLECTED, ConsentManager
+from sift.telemetry.service import CLITelemetry, NoOpSpan, get_telemetry, reset_telemetry
 
 
 class TestConsentManager:
@@ -99,9 +97,8 @@ class TestCLITelemetry:
 
     def test_track_command_propagates_exception(self):
         tel = CLITelemetry(enabled=False)
-        with pytest.raises(ValueError, match="test error"):
-            with tel.track_command("test"):
-                raise ValueError("test error")
+        with pytest.raises(ValueError, match="test error"), tel.track_command("test"):
+            raise ValueError("test error")
 
     def test_noop_span_methods(self):
         span = NoOpSpan()

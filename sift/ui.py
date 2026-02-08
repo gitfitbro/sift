@@ -2,12 +2,12 @@
 
 import json
 import sys
+
+from rich.align import Align
 from rich.console import Console
-from rich.theme import Theme
 from rich.panel import Panel
 from rich.text import Text
-from rich.table import Table
-from rich.align import Align
+from rich.theme import Theme
 
 # ── Output Mode State ──
 _plain_mode: bool = False
@@ -44,32 +44,34 @@ def print_json_output(data: dict | list) -> None:
 
 
 # ── Theme ──
-SIFT_THEME = Theme({
-    "info": "cyan",
-    "success": "bold green",
-    "warning": "yellow",
-    "error": "bold red",
-    "phase.name": "bold blue",
-    "phase.active": "bold cyan",
-    "phase.complete": "green",
-    "phase.pending": "dim",
-    "brand": "bold cyan",
-    "muted": "dim",
-})
+SIFT_THEME = Theme(
+    {
+        "info": "cyan",
+        "success": "bold green",
+        "warning": "yellow",
+        "error": "bold red",
+        "phase.name": "bold blue",
+        "phase.active": "bold cyan",
+        "phase.complete": "green",
+        "phase.pending": "dim",
+        "brand": "bold cyan",
+        "muted": "dim",
+    }
+)
 
 console = Console(theme=SIFT_THEME)
 
 # ── Status Icons ──
 ICONS = {
-    "complete": "[green]\u2714[/green]",       # checkmark
-    "active": "[cyan]\u25b6[/cyan]",           # play triangle
-    "pending": "[dim]\u25cb[/dim]",            # empty circle
-    "captured": "[yellow]\u25c9[/yellow]",     # dotted circle
-    "transcribed": "[blue]\u25c9[/blue]",      # dotted circle
-    "extracted": "[green]\u25c9[/green]",      # dotted circle
-    "error": "[red]\u2718[/red]",              # cross
+    "complete": "[green]\u2714[/green]",  # checkmark
+    "active": "[cyan]\u25b6[/cyan]",  # play triangle
+    "pending": "[dim]\u25cb[/dim]",  # empty circle
+    "captured": "[yellow]\u25c9[/yellow]",  # dotted circle
+    "transcribed": "[blue]\u25c9[/blue]",  # dotted circle
+    "extracted": "[green]\u25c9[/green]",  # dotted circle
+    "error": "[red]\u2718[/red]",  # cross
     "arrow": "[dim]\u2500\u2500\u25b8[/dim]",  # arrow ──▸
-    "bullet": "[cyan]\u2022[/cyan]",           # bullet
+    "bullet": "[cyan]\u2022[/cyan]",  # bullet
 }
 
 # ASCII equivalents for plain mode
@@ -108,11 +110,13 @@ def banner():
         "[dim]  & AI Extraction CLI[/dim]\n"
     )
 
-    console.print(Panel(
-        Align.center(content),
-        border_style="cyan",
-        padding=(0, 4),
-    ))
+    console.print(
+        Panel(
+            Align.center(content),
+            border_style="cyan",
+            padding=(0, 4),
+        )
+    )
 
 
 def phase_status_icon(status: str) -> str:
@@ -125,12 +129,17 @@ def phase_status_icon(status: str) -> str:
 def pipeline_view(phases: list[dict], current_phase: str = None):
     """Display a pipeline view of phases with status."""
     if _json_mode:
-        print_json_output([{
-            "id": p["id"],
-            "name": p["name"],
-            "status": p["status"],
-            "current": p["id"] == current_phase,
-        } for p in phases])
+        print_json_output(
+            [
+                {
+                    "id": p["id"],
+                    "name": p["name"],
+                    "status": p["status"],
+                    "current": p["id"] == current_phase,
+                }
+                for p in phases
+            ]
+        )
         return
 
     if _plain_mode:
@@ -144,7 +153,7 @@ def pipeline_view(phases: list[dict], current_phase: str = None):
         return
 
     parts = []
-    for i, phase in enumerate(phases):
+    for _i, phase in enumerate(phases):
         status = phase["status"]
         name = phase["name"]
 
@@ -179,12 +188,14 @@ def step_header(step_num: int, total: int, title: str, subtitle: str = ""):
     if subtitle:
         content += f"\n[dim italic]{subtitle}[/dim italic]"
 
-    console.print(Panel(
-        content,
-        title=progress,
-        border_style="blue",
-        padding=(0, 2),
-    ))
+    console.print(
+        Panel(
+            content,
+            title=progress,
+            border_style="blue",
+            padding=(0, 2),
+        )
+    )
 
 
 def success_panel(title: str, content=None):
@@ -197,11 +208,13 @@ def success_panel(title: str, content=None):
             print(f"  {content}")
         return
 
-    console.print(Panel(
-        content or "",
-        title=f"[bold green]{title}[/bold green]",
-        border_style="green",
-    ))
+    console.print(
+        Panel(
+            content or "",
+            title=f"[bold green]{title}[/bold green]",
+            border_style="green",
+        )
+    )
 
 
 def error_panel(title: str, content: str = ""):
@@ -215,11 +228,13 @@ def error_panel(title: str, content: str = ""):
             print(f"  {content}", file=sys.stderr)
         return
 
-    console.print(Panel(
-        content,
-        title=f"[bold red]{title}[/bold red]",
-        border_style="red",
-    ))
+    console.print(
+        Panel(
+            content,
+            title=f"[bold red]{title}[/bold red]",
+            border_style="red",
+        )
+    )
 
 
 def section_divider(text: str = ""):

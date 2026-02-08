@@ -1,12 +1,13 @@
 """Tests for shell completion functions."""
-import pytest
+
 from unittest.mock import MagicMock
+
 from sift.completions import (
-    complete_session_name,
-    complete_template_name,
+    complete_format,
     complete_phase_id,
     complete_provider_name,
-    complete_format,
+    complete_session_name,
+    complete_template_name,
 )
 
 
@@ -35,6 +36,7 @@ class TestCompleteTemplateName:
 
     def test_multi_template_plus_syntax(self, sift_home, sample_template_path):
         import shutil
+
         shutil.copy(
             sample_template_path,
             sift_home / "templates" / "other-template.yaml",

@@ -1,9 +1,10 @@
 """Anthropic (Claude) AI provider."""
+
 from __future__ import annotations
-import logging
+
 import base64
+import logging
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("sift.providers.anthropic")
 
@@ -12,8 +13,8 @@ class AnthropicProvider:
     name = "anthropic"
 
     def __init__(self):
-        from sift.core.secrets import get_key
         from sift.core.config_service import get_config_service
+        from sift.core.secrets import get_key
 
         self.api_key = get_key("anthropic")
         self.model = get_config_service().get_provider_model("anthropic")
@@ -24,9 +25,12 @@ class AnthropicProvider:
     def chat(self, system: str, user: str, max_tokens: int = 4000) -> str:
         """Send a chat message and return the response text."""
         import anthropic
+
         from sift.errors import (
-            ProviderAuthError, ProviderQuotaError,
-            ProviderModelError, ProviderError,
+            ProviderAuthError,
+            ProviderError,
+            ProviderModelError,
+            ProviderQuotaError,
         )
 
         client = anthropic.Anthropic(api_key=self.api_key)
@@ -46,27 +50,32 @@ class AnthropicProvider:
             raise ProviderAuthError(
                 "Anthropic API key is invalid or expired.\n"
                 "Check ANTHROPIC_API_KEY or run: sift config set-key anthropic",
-                provider=self.name, model=self.model,
+                provider=self.name,
+                model=self.model,
             ) from e
         except anthropic.RateLimitError as e:
             raise ProviderQuotaError(
                 "Anthropic rate limit exceeded. Wait and retry.",
-                provider=self.name, model=self.model,
+                provider=self.name,
+                model=self.model,
             ) from e
         except anthropic.NotFoundError as e:
             raise ProviderModelError(
                 f"Model '{self.model}' not found on Anthropic.",
-                provider=self.name, model=self.model,
+                provider=self.name,
+                model=self.model,
             ) from e
         except anthropic.APIError as e:
             raise ProviderError(
                 f"Anthropic API error: {e}",
-                provider=self.name, model=self.model,
+                provider=self.name,
+                model=self.model,
             ) from e
 
-    def transcribe(self, audio_path: Path) -> Optional[str]:
+    def transcribe(self, audio_path: Path) -> str | None:
         """Transcribe audio using Claude's audio document input."""
         import anthropic
+
         from sift.errors import ProviderAuthError, ProviderError
 
         logger.info("Transcribing with Claude (%s)...", self.model)
@@ -119,10 +128,12 @@ class AnthropicProvider:
         except anthropic.AuthenticationError as e:
             raise ProviderAuthError(
                 "Anthropic API key is invalid or expired.",
-                provider=self.name, model=self.model,
+                provider=self.name,
+                model=self.model,
             ) from e
         except anthropic.APIError as e:
             raise ProviderError(
                 f"Anthropic transcription error: {e}",
-                provider=self.name, model=self.model,
+                provider=self.name,
+                model=self.model,
             ) from e

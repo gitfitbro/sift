@@ -1,17 +1,21 @@
 """Workspace screen - session editor replacing workspace_cmd.open_workspace."""
+
 from __future__ import annotations
 
-from textual import on, work
-from textual.screen import Screen
-from textual.widgets import Header, Footer, Static, Button, ListView, ListItem, Label
-from textual.containers import Vertical, Horizontal, VerticalScroll
+from pathlib import Path
 
-from sift.models import Session
-from sift.core.extraction_service import ExtractionService
+from textual import on, work
+from textual.containers import Horizontal, VerticalScroll
+from textual.screen import Screen
+from textual.widgets import Button, Footer, Header, Label, ListItem, ListView, Static
+
 from sift.core.build_service import BuildService
-from sift.tui.theme import ICONS, STATUS_COLORS
-from sift.tui.widgets.pipeline import PipelineWidget
+from sift.core.extraction_service import ExtractionService
+from sift.models import Session
+from sift.tui.theme import ICONS
+from sift.tui.widgets.capture_form import CaptureForm
 from sift.tui.widgets.extraction_view import ExtractionView
+from sift.tui.widgets.pipeline import PipelineWidget
 
 
 class WorkspaceScreen(Screen):
@@ -30,6 +34,7 @@ class WorkspaceScreen(Screen):
         self._build_svc = BuildService()
         self._session: Session | None = None
         self._template = None
+        self._add_more_phase_id: str | None = None
 
     def compose(self):
         yield Header()
@@ -38,9 +43,11 @@ class WorkspaceScreen(Screen):
             yield Static(id="session-info")
             yield Static("Select a phase to view details:", id="phase-prompt")
             yield ListView(id="phase-list")
+            yield CaptureForm(id="capture-form")
             yield ExtractionView(id="extraction-view")
             yield Static(id="transcript-view")
         with Horizontal(id="action-bar"):
+            yield Button("Add More", id="btn-add-more", variant="default")
             yield Button("Re-extract", id="btn-re-extract", variant="primary")
             yield Button("Rebuild Outputs", id="btn-rebuild", variant="warning")
             yield Button("Quit", id="btn-quit", variant="error")
@@ -61,7 +68,7 @@ class WorkspaceScreen(Screen):
         self._template = self._session.get_template()
         self._refresh_ui()
 
-    def _refresh_ui(self) -> None:
+    async def _refresh_ui(self) -> None:
         """Refresh all UI from session state."""
         if not self._session or not self._template:
             return
@@ -73,18 +80,19 @@ class WorkspaceScreen(Screen):
         phase_list = []
         for pt in self._template.phases:
             ps = self._session.phases.get(pt.id)
-            phase_list.append({
-                "id": pt.id,
-                "name": pt.name,
-                "status": ps.status if ps else "pending",
-            })
+            phase_list.append(
+                {
+                    "id": pt.id,
+                    "name": pt.name,
+                    "status": ps.status if ps else "pending",
+                }
+            )
         self.query_one("#pipeline", PipelineWidget).update_phases(phase_list)
 
         # Session info
         total = len(self._template.phases)
         done = sum(
-            1 for p in self._session.phases.values()
-            if p.status in ("extracted", "complete")
+            1 for p in self._session.phases.values() if p.status in ("extracted", "complete")
         )
         info = self.query_one("#session-info", Static)
         info.update(
@@ -94,7 +102,7 @@ class WorkspaceScreen(Screen):
 
         # Phase list
         lv = self.query_one("#phase-list", ListView)
-        lv.clear()
+        await lv.clear()
         for pt in self._template.phases:
             ps = self._session.phases.get(pt.id)
             status = ps.status if ps else "pending"
@@ -102,6 +110,8 @@ class WorkspaceScreen(Screen):
             lv.append(ListItem(Label(f"{icon}  {pt.name}  [{status}]"), id=f"phase-{pt.id}"))
 
         # Hide detail views initially
+        self.query_one("#capture-form", CaptureForm).display = False
+        self.query_one("#btn-add-more", Button).display = False
         self.query_one("#extraction-view", ExtractionView).display = False
         self.query_one("#transcript-view", Static).display = False
 
@@ -116,6 +126,10 @@ class WorkspaceScreen(Screen):
         pt = next((p for p in self._template.phases if p.id == phase_id), None)
         if not pt:
             return
+
+        # Hide capture form when switching phases
+        self.query_one("#capture-form", CaptureForm).display = False
+        self._add_more_phase_id = None
 
         # Show transcript
         transcript_view = self.query_one("#transcript-view", Static)
@@ -138,6 +152,74 @@ class WorkspaceScreen(Screen):
             extraction_view.display = True
         else:
             extraction_view.display = False
+
+        # Show "Add More" button for phases that have content
+        ps = self._session.phases.get(phase_id)
+        has_content = ps and ps.status not in ("pending",)
+        self.query_one("#btn-add-more", Button).display = bool(has_content)
+
+    @on(Button.Pressed, "#btn-add-more")
+    def handle_add_more(self) -> None:
+        """Show capture form to append content to the selected phase."""
+        lv = self.query_one("#phase-list", ListView)
+        if lv.highlighted_child is None:
+            self.notify("Select a phase first", severity="warning")
+            return
+
+        item_id = lv.highlighted_child.id or ""
+        phase_id = item_id.replace("phase-", "")
+        self._add_more_phase_id = phase_id
+        self.query_one("#capture-form", CaptureForm).display = True
+        self.query_one("#btn-add-more", Button).display = False
+
+    @on(CaptureForm.Submitted)
+    def handle_capture(self, event: CaptureForm.Submitted) -> None:
+        """Handle capture form submission in workspace (always appends)."""
+        phase_id = self._add_more_phase_id
+        if not phase_id:
+            return
+        self._add_more_phase_id = None
+
+        if event.mode == "text":
+            self._do_add_text(phase_id, event.content)
+        elif event.mode == "file":
+            self._do_add_file(phase_id, event.content)
+
+    @on(CaptureForm.Skipped)
+    def handle_skip(self, event: CaptureForm.Skipped) -> None:
+        """Cancel add-more."""
+        self._add_more_phase_id = None
+        self.query_one("#capture-form", CaptureForm).display = False
+
+    @work(thread=True)
+    def _do_add_text(self, phase_id: str, text: str) -> None:
+        """Append text in a worker thread."""
+        try:
+            result = self._extraction_svc.capture_text(
+                self.session_name, phase_id, text, append=True
+            )
+            label = "appended" if result.appended else "captured"
+            self.app.call_from_thread(
+                self.notify, f"Text {label} ({result.char_count} chars)", severity="information"
+            )
+        except Exception as e:
+            self.app.call_from_thread(self.notify, str(e), severity="error")
+        self.app.call_from_thread(self._refresh_ui)
+
+    @work(thread=True)
+    def _do_add_file(self, phase_id: str, file_path: str) -> None:
+        """Append file content in a worker thread."""
+        try:
+            result = self._extraction_svc.capture_file(
+                self.session_name, phase_id, Path(file_path), append=True
+            )
+            label = "appended" if result.appended else "captured"
+            self.app.call_from_thread(
+                self.notify, f"File {label} ({result.file_type})", severity="information"
+            )
+        except Exception as e:
+            self.app.call_from_thread(self.notify, str(e), severity="error")
+        self.app.call_from_thread(self._refresh_ui)
 
     @on(Button.Pressed, "#btn-re-extract")
     def handle_re_extract(self) -> None:
@@ -172,7 +254,7 @@ class WorkspaceScreen(Screen):
         self.app.call_from_thread(self._refresh_ui)
 
     @on(Button.Pressed, "#btn-rebuild")
-    def action_rebuild(self) -> None:
+    def _on_rebuild_button(self) -> None:
         """Rebuild all outputs."""
         self._do_rebuild()
 

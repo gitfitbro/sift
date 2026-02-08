@@ -1,8 +1,8 @@
 """Tests for accessibility features: plain mode and JSON output."""
 
 import json
+
 import pytest
-from io import StringIO
 
 import sift.ui as ui
 
@@ -14,6 +14,7 @@ def reset_ui_modes():
     ui.set_json_mode(False)
     # Re-create console with theme after reset
     from rich.console import Console
+
     ui.console = Console(theme=ui.SIFT_THEME)
     yield
     ui.set_plain_mode(False)

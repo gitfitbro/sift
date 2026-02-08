@@ -1,7 +1,9 @@
 """Tests for SessionService."""
+
 import pytest
+
 from sift.core.session_service import SessionService
-from sift.errors import TemplateNotFoundError, SessionNotFoundError
+from sift.errors import SessionNotFoundError, TemplateNotFoundError
 
 
 class TestSessionServiceCreate:
@@ -40,6 +42,7 @@ class TestSessionServiceCreate:
     def test_create_session_multi_template(self, sift_home, sample_template_path):
         """Test creating with '+' syntax (same template combined with itself)."""
         import shutil
+
         shutil.copy(
             sample_template_path,
             sift_home / "templates" / "other-template.yaml",

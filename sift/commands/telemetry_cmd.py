@@ -1,6 +1,7 @@
 """CLI commands for telemetry management."""
 
 import typer
+
 from sift.ui import console
 
 app = typer.Typer(no_args_is_help=True)
@@ -10,7 +11,8 @@ app = typer.Typer(no_args_is_help=True)
 def status():
     """Show telemetry status and what's collected."""
     from rich.panel import Panel
-    from sift.telemetry.consent import ConsentManager, COLLECTED, NEVER_COLLECTED
+
+    from sift.telemetry.consent import COLLECTED, NEVER_COLLECTED, ConsentManager
 
     consent = ConsentManager()
     info = consent.status()
@@ -41,7 +43,7 @@ def status():
 @app.command()
 def enable():
     """Opt in to anonymous telemetry."""
-    from sift.telemetry.consent import ConsentManager, COLLECTED
+    from sift.telemetry.consent import COLLECTED, ConsentManager
 
     consent = ConsentManager()
 

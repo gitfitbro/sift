@@ -1,4 +1,5 @@
 """Unified CLI error handler for sift commands."""
+
 from __future__ import annotations
 
 import functools
@@ -8,15 +9,15 @@ import traceback
 
 import typer
 
-from sift.ui import console
 from sift.errors import (
-    SiftError,
-    SessionNotFoundError,
-    TemplateNotFoundError,
     ProviderAuthError,
     ProviderUnavailableError,
     SchemaVersionError,
+    SessionNotFoundError,
+    SiftError,
+    TemplateNotFoundError,
 )
+from sift.ui import console
 
 logger = logging.getLogger("sift.error_handler")
 
@@ -33,9 +34,7 @@ def _render_sift_error(e: SiftError) -> None:
     # Context details (only in debug mode)
     if e.context and _debug_mode():
         context_parts = [
-            f"  [dim]{key}:[/dim] {value}"
-            for key, value in e.context.items()
-            if value
+            f"  [dim]{key}:[/dim] {value}" for key, value in e.context.items() if value
         ]
         if context_parts:
             console.print("[dim]Context:[/dim]")
@@ -48,11 +47,15 @@ def _render_sift_error(e: SiftError) -> None:
     elif isinstance(e, TemplateNotFoundError):
         console.print("[dim]Run 'sift template list' to see available templates.[/dim]")
     elif isinstance(e, ProviderAuthError):
-        console.print("[dim]Run 'sift config set-key <provider> <key>' to store your API key.[/dim]")
+        console.print(
+            "[dim]Run 'sift config set-key <provider> <key>' to store your API key.[/dim]"
+        )
     elif isinstance(e, ProviderUnavailableError):
         console.print("[dim]Run 'sift doctor' to check your provider configuration.[/dim]")
     elif isinstance(e, SchemaVersionError):
-        console.print("[dim]This file was created by a newer version of sift. Please upgrade.[/dim]")
+        console.print(
+            "[dim]This file was created by a newer version of sift. Please upgrade.[/dim]"
+        )
 
 
 def handle_errors(func):
@@ -66,6 +69,7 @@ def handle_errors(func):
         def my_command(...):
             ...  # no try/except needed
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -78,6 +82,8 @@ def handle_errors(func):
         except KeyboardInterrupt:
             console.print("\n[dim]Interrupted.[/dim]")
             raise typer.Exit(130)
+        except (typer.Exit, typer.Abort, SystemExit):
+            raise
         except Exception as e:
             console.print(f"\n[bold red]Unexpected error:[/bold red] {e}")
             if _debug_mode():

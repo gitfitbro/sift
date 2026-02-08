@@ -1,16 +1,19 @@
 """Session workspace: interactive menu for browsing, editing, and rebuilding session data."""
-from __future__ import annotations
-import yaml
-from pathlib import Path
-from rich.panel import Panel
-from rich.table import Table
-from rich.prompt import Prompt, Confirm
-from rich.text import Text
-from sift.ui import console, ICONS, pipeline_view, section_divider, format_next_step
-from sift.models import ensure_dirs, Session
-from sift.core.extraction_service import ExtractionService
-from sift.core.build_service import BuildService
 
+from __future__ import annotations
+
+from pathlib import Path
+
+import yaml
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
+from rich.table import Table
+from rich.text import Text
+
+from sift.core.build_service import BuildService
+from sift.core.extraction_service import ExtractionService
+from sift.models import Session, ensure_dirs
+from sift.ui import ICONS, console, pipeline_view, section_divider
 
 _extraction_svc = ExtractionService()
 _build_svc = BuildService()
@@ -21,11 +24,13 @@ def _build_phase_list(session: Session, template) -> list[dict]:
     phases = []
     for pt in template.phases:
         ps = session.phases.get(pt.id)
-        phases.append({
-            "id": pt.id,
-            "name": pt.name,
-            "status": ps.status if ps else "pending",
-        })
+        phases.append(
+            {
+                "id": pt.id,
+                "name": pt.name,
+                "status": ps.status if ps else "pending",
+            }
+        )
     return phases
 
 
@@ -45,17 +50,21 @@ def _show_workspace_header(session: Session, template):
         f"Progress: {progress_text}"
     )
 
-    console.print(Panel(
-        content,
-        title=f"[bold cyan]Workspace: {session.name}[/bold cyan]",
-        border_style="cyan",
-        padding=(1, 2),
-    ))
+    console.print(
+        Panel(
+            content,
+            title=f"[bold cyan]Workspace: {session.name}[/bold cyan]",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+    )
     console.print()
     pipeline_view(_build_phase_list(session, template))
 
 
-def _phase_picker(session: Session, template, filter_status: list[str] = None, prompt_text: str = "Select phase") -> str:
+def _phase_picker(
+    session: Session, template, filter_status: list[str] = None, prompt_text: str = "Select phase"
+) -> str:
     """Show numbered phase list and let user pick one. Returns phase_id or None."""
     eligible = []
     for i, pt in enumerate(template.phases, 1):
@@ -103,7 +112,8 @@ def _show_extraction_table(extracted: dict, phase_name: str):
         if isinstance(value, list):
             if value:
                 display = "\n".join(
-                    f"\u2022 {item}" if not isinstance(item, dict)
+                    f"\u2022 {item}"
+                    if not isinstance(item, dict)
                     else "\u2022 " + ", ".join(f"{k}: {v}" for k, v in item.items())
                     for item in value[:5]
                 )
@@ -126,6 +136,7 @@ def _show_extraction_table(extracted: dict, phase_name: str):
 
 
 # ── Action handlers ──
+
 
 def _action_browse(session: Session, template):
     """Browse phase data: transcripts and extracted fields."""
@@ -153,11 +164,13 @@ def _action_browse(session: Session, template):
         preview = transcript[:800]
         if len(transcript) > 800:
             preview += f"\n\n[dim]... ({len(transcript):,} total chars)[/dim]"
-        console.print(Panel(
-            preview,
-            title="[dim]Transcript Preview[/dim]",
-            border_style="dim",
-        ))
+        console.print(
+            Panel(
+                preview,
+                title="[dim]Transcript Preview[/dim]",
+                border_style="dim",
+            )
+        )
     else:
         console.print("  [dim]No transcript captured yet.[/dim]")
 
@@ -175,7 +188,8 @@ def _action_re_extract(session_name: str, session: Session, template):
     console.print("\n  [bold]Re-Extract Phase[/bold]\n")
 
     phase_id = _phase_picker(
-        session, template,
+        session,
+        template,
         filter_status=["transcribed", "extracted", "complete"],
         prompt_text="Re-extract phase",
     )
@@ -191,16 +205,20 @@ def _action_re_extract(session_name: str, session: Session, template):
         console.print(f"  [red]No transcript for {pt.name}.[/red]")
         return
 
-    console.print(Panel(
-        transcript[:600] + ("..." if len(transcript) > 600 else ""),
-        title=f"[dim]Current Transcript: {pt.name}[/dim]",
-        border_style="dim",
-    ))
+    console.print(
+        Panel(
+            transcript[:600] + ("..." if len(transcript) > 600 else ""),
+            title=f"[dim]Current Transcript: {pt.name}[/dim]",
+            border_style="dim",
+        )
+    )
 
     # Option to replace transcript
     if Confirm.ask("  Edit transcript before re-extracting?", default=False):
         console.print("\n  [bold]Enter replacement text.[/bold]")
-        console.print("  [dim]Type or paste your text. Enter an empty line followed by 'END' to finish.[/dim]\n")
+        console.print(
+            "  [dim]Type or paste your text. Enter an empty line followed by 'END' to finish.[/dim]\n"
+        )
 
         lines = []
         while True:
@@ -259,7 +277,8 @@ def _action_refine(session: Session, template):
     console.print("\n  [bold]Refine Extracted Data[/bold]\n")
 
     phase_id = _phase_picker(
-        session, template,
+        session,
+        template,
         filter_status=["extracted", "complete"],
         prompt_text="Refine phase",
     )
@@ -292,10 +311,12 @@ def _action_refine(session: Session, template):
                     display += "..."
             console.print(f"    [bold cyan]{i}[/bold cyan]  {key}: {display}")
 
-        console.print(f"    [bold cyan]q[/bold cyan]  Done editing")
+        console.print("    [bold cyan]q[/bold cyan]  Done editing")
         console.print()
 
-        choice = Prompt.ask("  Edit field", choices=[str(i) for i in range(1, len(fields) + 1)] + ["q"])
+        choice = Prompt.ask(
+            "  Edit field", choices=[str(i) for i in range(1, len(fields) + 1)] + ["q"]
+        )
         if choice == "q":
             break
 
@@ -318,9 +339,15 @@ def _action_refine(session: Session, template):
                 value.append(new_item)
             elif action == "r":
                 for i, item in enumerate(value, 1):
-                    display = str(item) if not isinstance(item, dict) else ", ".join(f"{k}: {v}" for k, v in item.items())
+                    display = (
+                        str(item)
+                        if not isinstance(item, dict)
+                        else ", ".join(f"{k}: {v}" for k, v in item.items())
+                    )
                     console.print(f"    {i}. {display}")
-                rm_idx = Prompt.ask("  Remove #", choices=[str(i) for i in range(1, len(value) + 1)])
+                rm_idx = Prompt.ask(
+                    "  Remove #", choices=[str(i) for i in range(1, len(value) + 1)]
+                )
                 value.pop(int(rm_idx) - 1)
             elif action == "c":
                 value = []
@@ -379,7 +406,13 @@ def _action_rebuild(session_name: str, session: Session):
         try:
             with console.status("[bold]Generating AI summary...[/bold]"):
                 summary, path = _build_svc.generate_summary(session_name)
-            console.print(Panel(summary[:500] + "..." if len(summary) > 500 else summary, title="AI Summary", border_style="green"))
+            console.print(
+                Panel(
+                    summary[:500] + "..." if len(summary) > 500 else summary,
+                    title="AI Summary",
+                    border_style="green",
+                )
+            )
             console.print(f"  [dim]Saved to: {path}[/dim]")
         except (FileNotFoundError, ValueError) as e:
             console.print(f"  [red]{e}[/red]")
@@ -399,6 +432,7 @@ def _action_import(session_name: str):
         return
 
     from sift.commands.import_cmd import import_document
+
     try:
         import_document(session_name, path, auto=False)
     except SystemExit:
@@ -406,6 +440,7 @@ def _action_import(session_name: str):
 
 
 # ── Main workspace loop ──
+
 
 def open_workspace(session_name: str):
     """Launch the interactive session workspace."""
@@ -416,6 +451,7 @@ def open_workspace(session_name: str):
     except FileNotFoundError:
         console.print(f"[red]Session '{session_name}' not found[/red]")
         import typer
+
         raise typer.Exit(1)
 
     tmpl = s.get_template()
@@ -425,12 +461,20 @@ def open_workspace(session_name: str):
         _show_workspace_header(s, tmpl)
 
         console.print("  What would you like to do?\n")
-        console.print(f"    [bold cyan]1[/bold cyan]  Browse      [dim]View phase transcripts & extracted data[/dim]")
-        console.print(f"    [bold cyan]2[/bold cyan]  Re-extract  [dim]Re-run AI extraction on a phase[/dim]")
-        console.print(f"    [bold cyan]3[/bold cyan]  Refine      [dim]Edit extracted field values[/dim]")
-        console.print(f"    [bold cyan]4[/bold cyan]  Rebuild     [dim]Regenerate all outputs[/dim]")
-        console.print(f"    [bold cyan]5[/bold cyan]  Import      [dim]Import a multi-phase document[/dim]")
-        console.print(f"    [bold cyan]q[/bold cyan]  Quit")
+        console.print(
+            "    [bold cyan]1[/bold cyan]  Browse      [dim]View phase transcripts & extracted data[/dim]"
+        )
+        console.print(
+            "    [bold cyan]2[/bold cyan]  Re-extract  [dim]Re-run AI extraction on a phase[/dim]"
+        )
+        console.print(
+            "    [bold cyan]3[/bold cyan]  Refine      [dim]Edit extracted field values[/dim]"
+        )
+        console.print("    [bold cyan]4[/bold cyan]  Rebuild     [dim]Regenerate all outputs[/dim]")
+        console.print(
+            "    [bold cyan]5[/bold cyan]  Import      [dim]Import a multi-phase document[/dim]"
+        )
+        console.print("    [bold cyan]q[/bold cyan]  Quit")
         console.print()
 
         choice = Prompt.ask("  Choose", choices=["1", "2", "3", "4", "5", "q"], default="1")

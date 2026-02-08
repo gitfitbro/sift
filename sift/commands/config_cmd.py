@@ -1,9 +1,11 @@
 """CLI commands for configuration management."""
+
 from __future__ import annotations
 
 import typer
-from sift.ui import console
+
 from sift.error_handler import handle_errors
+from sift.ui import console
 
 app = typer.Typer(
     name="config",
@@ -19,6 +21,7 @@ def show():
     """Display the resolved configuration (all layers merged)."""
     from rich.panel import Panel
     from rich.table import Table
+
     from sift.core.config_service import get_config_service
 
     svc = get_config_service()
@@ -26,12 +29,14 @@ def show():
 
     # Sources
     sources = info["sources"]
-    console.print(Panel(
-        f"Global:  {sources['global_config'] or '[dim]not found[/dim]'}\n"
-        f"Project: {sources['project_config'] or '[dim]not found[/dim]'}",
-        title="Config Sources",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel(
+            f"Global:  {sources['global_config'] or '[dim]not found[/dim]'}\n"
+            f"Project: {sources['project_config'] or '[dim]not found[/dim]'}",
+            title="Config Sources",
+            border_style="cyan",
+        )
+    )
 
     # Resolved values
     resolved = info["resolved"]
@@ -61,6 +66,7 @@ def show():
 
     # Key status
     from sift.core.secrets import list_stored_providers
+
     key_status = list_stored_providers()
     table3 = Table(title="API Keys", show_header=True)
     table3.add_column("Provider", style="cyan")
@@ -142,6 +148,7 @@ def init():
 def path():
     """Show all configuration file locations."""
     from rich.table import Table
+
     from sift.core.config_service import get_config_service
 
     svc = get_config_service()

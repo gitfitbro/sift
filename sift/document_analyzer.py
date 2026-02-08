@@ -1,10 +1,13 @@
 """AI-powered document analysis for multi-phase content detection and routing."""
+
 from __future__ import annotations
+
 import logging
 import re
-import yaml
 from dataclasses import dataclass
-from typing import Optional
+
+import yaml
+
 from sift.providers import get_provider
 
 logger = logging.getLogger("sift.document_analyzer")
@@ -13,12 +16,13 @@ logger = logging.getLogger("sift.document_analyzer")
 @dataclass
 class PhaseMapping:
     """Result of mapping a document section to a template phase."""
+
     phase_id: str
     phase_name: str
-    matched_pages: str        # "1-3", "4-6", "all"
-    section_title: str        # what was detected, e.g., "Workflow Description"
-    confidence: str           # "high", "medium", "low"
-    content: str = ""         # the actual extracted text for this phase
+    matched_pages: str  # "1-3", "4-6", "all"
+    section_title: str  # what was detected, e.g., "Workflow Description"
+    confidence: str  # "high", "medium", "low"
+    content: str = ""  # the actual extracted text for this phase
 
 
 def analyze_document_for_phases(
@@ -49,16 +53,13 @@ def analyze_document_for_phases(
     for p in phases:
         fields_desc = ""
         if p.extract:
-            fields_desc = "\n".join(
-                f"    - {e.id} ({e.type}): {e.prompt}"
-                for e in p.extract
-            )
+            fields_desc = "\n".join(f"    - {e.id} ({e.type}): {e.prompt}" for e in p.extract)
         phase_descriptions.append(
             f"### Phase: {p.name} (id: {p.id})\n"
             f"Description: {p.prompt.strip()}\n"
-            f"Extraction fields:\n{fields_desc}" if fields_desc else
-            f"### Phase: {p.name} (id: {p.id})\n"
-            f"Description: {p.prompt.strip()}"
+            f"Extraction fields:\n{fields_desc}"
+            if fields_desc
+            else f"### Phase: {p.name} (id: {p.id})\nDescription: {p.prompt.strip()}"
         )
 
     phases_text = "\n\n".join(phase_descriptions)
@@ -66,7 +67,9 @@ def analyze_document_for_phases(
     # Truncate document if very long (preserve page markers)
     doc_for_analysis = document_text
     if len(doc_for_analysis) > 15000:
-        doc_for_analysis = doc_for_analysis[:15000] + "\n\n[... document truncated for analysis ...]"
+        doc_for_analysis = (
+            doc_for_analysis[:15000] + "\n\n[... document truncated for analysis ...]"
+        )
 
     system_prompt = (
         "You are a document analysis engine for a structured session capture tool. "
@@ -116,7 +119,7 @@ Only include phases that have actual matching content. Omit phases with no match
     # Clean up response
     if response_text.startswith("```"):
         lines = response_text.split("\n")
-        lines = [l for l in lines if not l.strip().startswith("```")]
+        lines = [line for line in lines if not line.strip().startswith("```")]
         response_text = "\n".join(lines)
 
     # Parse YAML response
@@ -132,7 +135,7 @@ Only include phases that have actual matching content. Omit phases with no match
             fixed_text = provider.chat("", fix_prompt, max_tokens=4000).strip()
             if fixed_text.startswith("```"):
                 lines = fixed_text.split("\n")
-                lines = [l for l in lines if not l.strip().startswith("```")]
+                lines = [line for line in lines if not line.strip().startswith("```")]
                 fixed_text = "\n".join(lines)
             result = yaml.safe_load(fixed_text)
         except (yaml.YAMLError, Exception):
@@ -158,14 +161,16 @@ Only include phases that have actual matching content. Omit phases with no match
         # Extract actual content for these pages
         content = _extract_pages(document_text, pages_str)
 
-        mappings.append(PhaseMapping(
-            phase_id=pid,
-            phase_name=phase_lookup[pid],
-            matched_pages=pages_str,
-            section_title=section,
-            confidence=confidence,
-            content=content,
-        ))
+        mappings.append(
+            PhaseMapping(
+                phase_id=pid,
+                phase_name=phase_lookup[pid],
+                matched_pages=pages_str,
+                section_title=section,
+                confidence=confidence,
+                content=content,
+            )
+        )
 
     return mappings
 
@@ -211,7 +216,7 @@ def _extract_pages(document_text: str, pages_str: str) -> str:
         return document_text
 
     # Split by [Page N] markers and collect matching pages
-    page_pattern = re.compile(r'\[Page (\d+)\]')
+    page_pattern = re.compile(r"\[Page (\d+)\]")
     pages = page_pattern.split(document_text)
 
     # pages alternates: [text_before_first_marker, page_num, page_content, page_num, page_content, ...]

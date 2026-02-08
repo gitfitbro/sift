@@ -4,13 +4,13 @@ This module delegates to sift.core.config_service for layered config resolution
 and sift.core.secrets for API key management. It maintains backward-compatible
 exports used by existing code.
 """
-import os
+
 from pathlib import Path
-from typing import Optional
 
 # Try to load .env file if it exists
 try:
     from dotenv import load_dotenv
+
     project_root = Path(__file__).parent.parent
     env_file = project_root / ".env"
     if env_file.exists():
@@ -38,24 +38,28 @@ class Config:
     def get_ai_provider() -> str:
         """Get the active AI provider name."""
         from sift.core.config_service import get_config_service
+
         return get_config_service().get_provider_name()
 
     @staticmethod
-    def get_anthropic_api_key() -> Optional[str]:
+    def get_anthropic_api_key() -> str | None:
         """Get Anthropic API key."""
         from sift.core.secrets import get_key
+
         return get_key("anthropic")
 
     @staticmethod
-    def get_google_api_key() -> Optional[str]:
+    def get_google_api_key() -> str | None:
         """Get Google/Gemini API key."""
         from sift.core.secrets import get_key
+
         return get_key("gemini")
 
     @staticmethod
-    def get_provider_api_key(provider: str = None) -> Optional[str]:
+    def get_provider_api_key(provider: str = None) -> str | None:
         """Get the API key for the specified or current provider."""
         from sift.core.secrets import get_key
+
         provider = provider or Config.get_ai_provider()
         return get_key(provider)
 
@@ -63,6 +67,7 @@ class Config:
     def get_sift_home() -> Path:
         """Get the base directory for all sift data."""
         from sift.core.config_service import get_config_service
+
         return get_config_service().get_data_dir()
 
     @staticmethod

@@ -4,13 +4,13 @@ Stores API keys in ~/.config/sift/credentials with restricted file permissions.
 Environment variables always override stored keys. Optional keyring integration
 for OS-level secure storage.
 """
+
 from __future__ import annotations
 
 import logging
 import os
 import stat
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("sift.secrets")
 
@@ -84,7 +84,7 @@ def store_key(provider: str, api_key: str) -> None:
     logger.info("Stored %s key in credentials file", provider)
 
 
-def get_key(provider: str) -> Optional[str]:
+def get_key(provider: str) -> str | None:
     """Get the API key for a provider.
 
     Priority:
@@ -165,20 +165,23 @@ def list_stored_providers() -> dict[str, str]:
 
 # --- Keyring integration (optional) ---
 
+
 def _store_keyring(provider: str, api_key: str) -> bool:
     """Try to store key in system keyring. Returns True on success."""
     try:
         import keyring
+
         keyring.set_password("sift", provider, api_key)
         return True
     except (ImportError, Exception):
         return False
 
 
-def _get_keyring(provider: str) -> Optional[str]:
+def _get_keyring(provider: str) -> str | None:
     """Try to get key from system keyring. Returns None if unavailable."""
     try:
         import keyring
+
         return keyring.get_password("sift", provider)
     except (ImportError, Exception):
         return None
@@ -188,6 +191,7 @@ def _remove_keyring(provider: str) -> bool:
     """Try to remove key from system keyring. Returns True on success."""
     try:
         import keyring
+
         keyring.delete_password("sift", provider)
         return True
     except (ImportError, Exception):

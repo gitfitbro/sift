@@ -1,16 +1,19 @@
 """Shell completion functions for Sift CLI."""
+
 from __future__ import annotations
 
 
 def complete_session_name(incomplete: str) -> list[str]:
     """Complete session names from filesystem."""
     from sift.core.session_service import SessionService
+
     return [n for n in SessionService().get_session_names() if n.startswith(incomplete)]
 
 
 def complete_template_name(incomplete: str) -> list[str]:
     """Complete template names. Handles '+' syntax for multi-template."""
     from sift.core.session_service import SessionService
+
     names = SessionService().get_template_names()
     if "+" in incomplete:
         prefix = incomplete.rsplit("+", 1)[0] + "+"
@@ -22,6 +25,7 @@ def complete_template_name(incomplete: str) -> list[str]:
 def complete_phase_id(ctx, incomplete: str) -> list[str]:
     """Context-aware phase ID completion (reads session from parsed args)."""
     from sift.core.session_service import SessionService
+
     session_name = ctx.params.get("session")
     if not session_name:
         return []
@@ -31,6 +35,7 @@ def complete_phase_id(ctx, incomplete: str) -> list[str]:
 def complete_provider_name(incomplete: str) -> list[str]:
     """Complete provider names (discovered via entry points)."""
     from sift.providers import get_provider_names
+
     return [p for p in get_provider_names() if p.startswith(incomplete)]
 
 

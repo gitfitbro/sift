@@ -1,9 +1,9 @@
 """Ollama local AI provider — uses httpx to call the Ollama REST API."""
+
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("sift.providers.ollama")
 
@@ -26,6 +26,7 @@ def _import_httpx():
     """Import httpx, raising a helpful error if missing."""
     try:
         import httpx
+
         return httpx
     except ImportError:
         raise ImportError(
@@ -46,9 +47,7 @@ class OllamaProvider:
 
         config = get_config_service()
         self.model = config.get_provider_model("ollama")
-        self.endpoint = config.get(
-            "providers.ollama.endpoint", "http://localhost:11434"
-        )
+        self.endpoint = config.get("providers.ollama.endpoint", "http://localhost:11434")
 
     def is_available(self) -> bool:
         """Check if the Ollama server is reachable."""
@@ -112,8 +111,7 @@ class OllamaProvider:
                     model=self.model,
                 ) from e
             raise ProviderError(
-                f"Ollama API error (HTTP {e.response.status_code}): "
-                f"{e.response.text}",
+                f"Ollama API error (HTTP {e.response.status_code}): {e.response.text}",
                 provider=self.name,
                 model=self.model,
             ) from e
@@ -126,7 +124,7 @@ class OllamaProvider:
                 model=self.model,
             ) from e
 
-    def transcribe(self, audio_path: Path) -> Optional[str]:
+    def transcribe(self, audio_path: Path) -> str | None:
         """Ollama does not support audio transcription."""
         logger.info("Ollama does not support audio transcription, falling back.")
         return None

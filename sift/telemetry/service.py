@@ -57,16 +57,18 @@ class CLITelemetry:
     def _setup_otel(self) -> None:
         """Initialize OpenTelemetry with strict timeouts."""
         try:
-            from opentelemetry import trace, metrics
-            from opentelemetry.sdk.trace import TracerProvider
-            from opentelemetry.sdk.trace.export import BatchSpanProcessor
+            from opentelemetry import metrics, trace
             from opentelemetry.sdk.metrics import MeterProvider
             from opentelemetry.sdk.resources import Resource
+            from opentelemetry.sdk.trace import TracerProvider
+            from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-            resource = Resource.create({
-                "service.name": "sift-cli",
-                "service.version": _get_version(),
-            })
+            resource = Resource.create(
+                {
+                    "service.name": "sift-cli",
+                    "service.version": _get_version(),
+                }
+            )
 
             # Tracer with batch processor (exports in background)
             tracer_provider = TracerProvider(resource=resource)
@@ -74,6 +76,7 @@ class CLITelemetry:
             # Try OTLP exporter, fall back to console for debug
             try:
                 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
                 exporter = OTLPSpanExporter(timeout=2)
             except ImportError:
                 logger.debug("OTLP exporter not available, telemetry spans will not be exported")
@@ -158,10 +161,13 @@ class CLITelemetry:
         except Exception as exc:
             # Record error (type only, never message/trace)
             if "command.error" in self._counters:
-                self._counters["command.error"].add(1, {
-                    "command": command_name,
-                    "error_type": type(exc).__name__,
-                })
+                self._counters["command.error"].add(
+                    1,
+                    {
+                        "command": command_name,
+                        "error_type": type(exc).__name__,
+                    },
+                )
             if hasattr(span, "record_exception"):
                 span.record_exception(exc)
             raise
@@ -175,16 +181,20 @@ class CLITelemetry:
     def record_provider_used(self, provider_name: str, model: str = "") -> None:
         """Record which AI provider was used."""
         if self._enabled and "provider.used" in self._counters:
-            self._counters["provider.used"].add(1, {
-                "provider": provider_name,
-                "model": model,
-            })
+            self._counters["provider.used"].add(
+                1,
+                {
+                    "provider": provider_name,
+                    "model": model,
+                },
+            )
 
 
 def _get_version() -> str:
     """Get sift version safely."""
     try:
         from importlib.metadata import version
+
         return version("sift-cli")
     except Exception:
         return "0.0.0"
@@ -195,6 +205,7 @@ def get_telemetry() -> CLITelemetry:
     global _telemetry
     if _telemetry is None:
         from sift.telemetry.consent import ConsentManager
+
         consent = ConsentManager()
         _telemetry = CLITelemetry(enabled=consent.is_enabled())
     return _telemetry

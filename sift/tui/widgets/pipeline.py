@@ -1,9 +1,10 @@
 """Pipeline widget - shows phase flow with status icons."""
+
 from __future__ import annotations
 
-from textual.widget import Widget
-from textual.reactive import reactive
 from rich.text import Text
+from textual.reactive import reactive
+from textual.widget import Widget
 
 from sift.tui.theme import ICONS, STATUS_COLORS
 
@@ -34,7 +35,7 @@ class PipelineWidget(Widget):
             status = phase.get("status", "pending")
             name = phase.get("name", phase.get("id", "?"))
             icon = ICONS.get(status, ICONS["pending"])
-            color = STATUS_COLORS.get(status, "grey50")
+            color = STATUS_COLORS.get(status, "#808080")
 
             if phase.get("id") == self.current_phase:
                 parts.append(Text(f"{ICONS['active']} {name}", style="bold cyan"))

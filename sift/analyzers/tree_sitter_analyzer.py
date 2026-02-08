@@ -3,6 +3,7 @@
 Supports 40+ languages when tree-sitter is installed.
 Falls back to basic line-counting analysis when unavailable.
 """
+
 from __future__ import annotations
 
 import logging
@@ -99,6 +100,7 @@ def _try_tree_sitter() -> bool:
     """Check if tree-sitter is available."""
     try:
         import tree_sitter_languages  # noqa: F401
+
         return True
     except ImportError:
         return False
@@ -148,7 +150,10 @@ def analyze_file(path: Path) -> FileAnalysis:
 
 
 def _analyze_with_tree_sitter(
-    path: Path, language: str, source: str, line_count: int,
+    path: Path,
+    language: str,
+    source: str,
+    line_count: int,
 ) -> FileAnalysis:
     """Perform tree-sitter AST analysis."""
     try:

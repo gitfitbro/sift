@@ -4,10 +4,10 @@ Providers are discovered via setuptools entry points (group ``sift.providers``).
 Built-in providers (anthropic, gemini, ollama) are registered in pyproject.toml.
 Third-party packages can add providers by declaring their own entry points.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 # Ensure .env is loaded before reading any env vars
 import sift.config  # noqa: F401 — triggers dotenv loading
@@ -30,33 +30,38 @@ def _register_defaults():
         return
 
     from sift.plugins import discover_providers
+
     discovered = discover_providers()
 
     if discovered:
         PROVIDERS.update(discovered)
-        logger.debug("Discovered %d providers via entry points: %s",
-                      len(discovered), list(discovered.keys()))
+        logger.debug(
+            "Discovered %d providers via entry points: %s", len(discovered), list(discovered.keys())
+        )
     else:
         # Fallback: direct imports for running from source without install
         logger.debug("No entry points found, falling back to direct imports")
         try:
             from .anthropic_provider import AnthropicProvider
+
             PROVIDERS["anthropic"] = AnthropicProvider
         except ImportError:
             pass
         try:
             from .gemini_provider import GeminiProvider
+
             PROVIDERS["gemini"] = GeminiProvider
         except ImportError:
             pass
         try:
             from .ollama_provider import OllamaProvider
+
             PROVIDERS["ollama"] = OllamaProvider
         except ImportError:
             pass
 
 
-def get_provider(name: Optional[str] = None):
+def get_provider(name: str | None = None):
     """Get the active AI provider instance.
 
     Args:
@@ -74,6 +79,7 @@ def get_provider(name: Optional[str] = None):
     if name:
         if name not in PROVIDERS:
             from sift.errors import ProviderUnavailableError
+
             available = ", ".join(sorted(PROVIDERS.keys()))
             raise ProviderUnavailableError(
                 f"Unknown provider '{name}'. Available: {available}",
@@ -87,6 +93,7 @@ def get_provider(name: Optional[str] = None):
 
     # Auto-detect from config service
     from sift.core.config_service import get_config_service
+
     provider_name = get_config_service().get_provider_name()
     return get_provider(provider_name)
 

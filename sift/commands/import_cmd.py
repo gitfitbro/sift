@@ -1,16 +1,19 @@
 """Document import command: analyze and distribute multi-phase documents."""
-import typer
+
 import shutil
 from datetime import datetime
 from pathlib import Path
+
+import typer
 from rich.panel import Panel
+from rich.prompt import Confirm
 from rich.table import Table
-from rich.prompt import Prompt, Confirm
-from sift.ui import console, ICONS, format_next_step
-from sift.models import ensure_dirs, Session
-from sift.pdf import extract_text_from_pdf, PDF_AVAILABLE, PDF_ENGINE
+
 from sift.document_analyzer import analyze_document_for_phases
 from sift.error_handler import handle_errors
+from sift.models import Session, ensure_dirs
+from sift.pdf import PDF_AVAILABLE, PDF_ENGINE, extract_text_from_pdf
+from sift.ui import ICONS, console, format_next_step
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -29,6 +32,7 @@ def import_document(
 
     if not file.exists():
         from sift.errors import CaptureError
+
         raise CaptureError(f"File not found: {file}", file_path=str(file))
 
     tmpl = s.get_template()
@@ -38,6 +42,7 @@ def import_document(
     if suffix == ".pdf":
         if not PDF_AVAILABLE:
             from sift.errors import CaptureError
+
             raise CaptureError("PDF support not available. Install with: pip install pdfplumber")
 
         with console.status("[bold cyan]Reading PDF...[/bold cyan]"):
@@ -55,12 +60,14 @@ def import_document(
         stats_table.add_row("Tables found", str(pdf_stats["table_count"]))
         stats_table.add_row("Characters", f"{pdf_stats['char_count']:,}")
         stats_table.add_row("Engine", PDF_ENGINE)
-        console.print(Panel(
-            stats_table,
-            title="[bold green]PDF Processed[/bold green]",
-            subtitle=file.name,
-            border_style="green",
-        ))
+        console.print(
+            Panel(
+                stats_table,
+                title="[bold green]PDF Processed[/bold green]",
+                subtitle=file.name,
+                border_style="green",
+            )
+        )
 
     elif suffix in (".txt", ".md", ".text"):
         doc_text = file.read_text()
@@ -71,7 +78,10 @@ def import_document(
 
     else:
         from sift.errors import CaptureError
-        raise CaptureError(f"Unsupported file type: {suffix}. Use PDF or text files.", file_path=str(file))
+
+        raise CaptureError(
+            f"Unsupported file type: {suffix}. Use PDF or text files.", file_path=str(file)
+        )
 
     # ── Store document at session level ──
     docs_dir = s.dir / "documents"
@@ -135,8 +145,10 @@ def import_document(
     # Warn about unmapped phases
     if unmapped_phases:
         names = ", ".join(p.name for p in unmapped_phases)
-        console.print(f"\n  [yellow]{ICONS['bullet']} {names}[/yellow] [dim]had no matching content.[/dim]")
-        console.print(f"  [dim]These phases may need separate audio recordings or text input.[/dim]")
+        console.print(
+            f"\n  [yellow]{ICONS['bullet']} {names}[/yellow] [dim]had no matching content.[/dim]"
+        )
+        console.print("  [dim]These phases may need separate audio recordings or text input.[/dim]")
 
     # Check for phases that already have data
     overwrite_phases = []
@@ -146,12 +158,16 @@ def import_document(
             overwrite_phases.append(m.phase_name)
 
     if overwrite_phases:
-        console.print(f"\n  [yellow]Warning: {', '.join(overwrite_phases)} already have data.[/yellow]")
+        console.print(
+            f"\n  [yellow]Warning: {', '.join(overwrite_phases)} already have data.[/yellow]"
+        )
 
     # ── Confirm and distribute ──
     if not auto:
         console.print()
-        if not Confirm.ask(f"  Distribute content to {len(mappings)} matched phases?", default=True):
+        if not Confirm.ask(
+            f"  Distribute content to {len(mappings)} matched phases?", default=True
+        ):
             console.print("  [dim]Import cancelled.[/dim]")
             raise typer.Exit(0)
 
@@ -186,12 +202,14 @@ def import_document(
         )
 
     # Record document in session
-    s.documents.append({
-        "id": doc_id,
-        "filename": file.name,
-        "imported_at": datetime.now().isoformat(),
-        "phases_mapped": [m.phase_id for m in mappings],
-    })
+    s.documents.append(
+        {
+            "id": doc_id,
+            "filename": file.name,
+            "imported_at": datetime.now().isoformat(),
+            "phases_mapped": [m.phase_id for m in mappings],
+        }
+    )
 
     s.save()
 

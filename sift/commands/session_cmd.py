@@ -1,12 +1,15 @@
 """Session management commands - thin CLI wrappers over SessionService."""
-import typer
+
 from pathlib import Path
-from rich.table import Table
+
+import typer
 from rich.panel import Panel
-from sift.ui import console, ICONS, pipeline_view, format_next_step
-from sift.core.session_service import SessionService
+from rich.table import Table
+
 from sift.completions import complete_session_name, complete_template_name
+from sift.core.session_service import SessionService
 from sift.error_handler import handle_errors
+from sift.ui import ICONS, console, format_next_step, pipeline_view
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -16,7 +19,9 @@ _svc = SessionService()
 @app.command("create")
 @handle_errors
 def create(
-    template: str = typer.Argument(..., help="Template name or path", autocompletion=complete_template_name),
+    template: str = typer.Argument(
+        ..., help="Template name or path", autocompletion=complete_template_name
+    ),
     name: str = typer.Option(None, "--name", "-n", help="Session name"),
 ):
     """Create a new session from a template (use '+' to combine: discovery-call+workflow-extraction)."""
@@ -87,39 +92,38 @@ def export_session(
 
 # ── Render helpers ──
 
+
 def _render_session_created(detail):
     """Render the session creation summary."""
     phases_list = "\n".join(
-        f"  {ICONS['pending']} {p.name} [dim]({p.id})[/dim]"
-        for p in detail.phases
+        f"  {ICONS['pending']} {p.name} [dim]({p.id})[/dim]" for p in detail.phases
     )
 
-    console.print(Panel(
-        f"[bold]{detail.template_name}[/bold]\n"
-        f"[dim]{detail.status}[/dim]\n\n"
-        f"{phases_list}",
-        title=f"[bold green]Session Created: {detail.name}[/bold green]",
-        border_style="green",
-        padding=(1, 2),
-    ))
+    console.print(
+        Panel(
+            f"[bold]{detail.template_name}[/bold]\n[dim]{detail.status}[/dim]\n\n{phases_list}",
+            title=f"[bold green]Session Created: {detail.name}[/bold green]",
+            border_style="green",
+            padding=(1, 2),
+        )
+    )
     format_next_step(f"sift run {detail.name}")
 
 
 def _render_session_status(detail, session_name: str):
     """Render detailed session status."""
-    console.print(Panel(
-        f"[bold]{detail.template_name}[/bold]\n"
-        f"[dim]Created: {detail.created_at[:16]} | Updated: {detail.updated_at[:16]}[/dim]\n"
-        f"Progress: [green]{detail.done_phases}[/green]/{detail.total_phases} phases complete",
-        title=f"[bold cyan]{detail.name}[/bold cyan]",
-        subtitle=f"Status: {detail.status}",
-    ))
+    console.print(
+        Panel(
+            f"[bold]{detail.template_name}[/bold]\n"
+            f"[dim]Created: {detail.created_at[:16]} | Updated: {detail.updated_at[:16]}[/dim]\n"
+            f"Progress: [green]{detail.done_phases}[/green]/{detail.total_phases} phases complete",
+            title=f"[bold cyan]{detail.name}[/bold cyan]",
+            subtitle=f"Status: {detail.status}",
+        )
+    )
 
     # Pipeline view
-    phase_list = [
-        {"id": p.id, "name": p.name, "status": p.status}
-        for p in detail.phases
-    ]
+    phase_list = [{"id": p.id, "name": p.name, "status": p.status} for p in detail.phases]
     pipeline_view(phase_list)
 
     # Detail table
@@ -138,8 +142,12 @@ def _render_session_status(detail, session_name: str):
         extracted = ICONS["complete"] if p.has_extracted else "[dim]\u2014[/dim]"
 
         table.add_row(
-            str(i), f"[bold]{p.name}[/bold]",
-            f"{icon} {p.status}", audio, transcript, extracted,
+            str(i),
+            f"[bold]{p.name}[/bold]",
+            f"{icon} {p.status}",
+            audio,
+            transcript,
+            extracted,
         )
 
     console.print(table)
@@ -149,5 +157,7 @@ def _render_session_status(detail, session_name: str):
         if detail.next_action == "build":
             cmd = f"sift build generate {session_name}"
         else:
-            cmd = f"sift phase {detail.next_action} {session_name} --phase {detail.next_action_phase}"
+            cmd = (
+                f"sift phase {detail.next_action} {session_name} --phase {detail.next_action_phase}"
+            )
         format_next_step(cmd)

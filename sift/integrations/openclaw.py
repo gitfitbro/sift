@@ -3,10 +3,10 @@
 Exposes sift as conversational commands for messaging platforms
 (Slack, Discord, Telegram) via the Clawd.bot skill interface.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 logger = logging.getLogger("sift.integrations.openclaw")
 
@@ -60,7 +60,7 @@ class SiftClawdSkill:
         self,
         channel_id: str,
         text: str,
-        user_id: Optional[str] = None,
+        user_id: str | None = None,
     ) -> str:
         """Dispatch a /sift command and return a text response.
 
@@ -137,8 +137,7 @@ class SiftClawdSkill:
         svc = ExtractionService()
         result = svc.capture_text(session_name, phase_id, text)
         return (
-            f"Captured {result.char_count} chars for '{result.phase_name}'\n"
-            f"Status: {result.status}"
+            f"Captured {result.char_count} chars for '{result.phase_name}'\nStatus: {result.status}"
         )
 
     def _cmd_next(self, channel_id: str, args: str) -> str:
@@ -173,10 +172,7 @@ class SiftClawdSkill:
         svc = ExtractionService()
         result = svc.extract_phase(session_name, phase_id)
         fields = ", ".join(result.fields.keys()) if result.fields else "(none)"
-        return (
-            f"Extracted {result.field_count} fields from '{result.phase_name}'\n"
-            f"Fields: {fields}"
-        )
+        return f"Extracted {result.field_count} fields from '{result.phase_name}'\nFields: {fields}"
 
     def _cmd_status(self, channel_id: str, args: str) -> str:
         from sift.core.session_service import SessionService
@@ -195,8 +191,13 @@ class SiftClawdSkill:
             "",
         ]
         for p in detail.phases:
-            icon = {"pending": "[ ]", "captured": "[~]", "transcribed": "[~]",
-                    "extracted": "[x]", "complete": "[x]"}.get(p.status, "[ ]")
+            icon = {
+                "pending": "[ ]",
+                "captured": "[~]",
+                "transcribed": "[~]",
+                "extracted": "[x]",
+                "complete": "[x]",
+            }.get(p.status, "[ ]")
             lines.append(f"  {icon} {p.id}: {p.status}")
 
         if detail.next_action:
@@ -218,7 +219,7 @@ class SiftClawdSkill:
         del self._active_sessions[channel_id]
         return f"Outputs generated:\n{files}\n\nSession complete."
 
-    def _get_active(self, channel_id: str) -> Optional[str]:
+    def _get_active(self, channel_id: str) -> str | None:
         return self._active_sessions.get(channel_id)
 
     @staticmethod

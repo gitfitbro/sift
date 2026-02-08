@@ -1,14 +1,17 @@
 """PDF extraction utilities for sift."""
+
 import re
 from pathlib import Path
 
 try:
     import pdfplumber
+
     PDF_AVAILABLE = True
     PDF_ENGINE = "pdfplumber"
 except ImportError:
     try:
-        from pypdf import PdfReader
+        from pypdf import PdfReader  # noqa: F401
+
         PDF_AVAILABLE = True
         PDF_ENGINE = "pypdf"
     except ImportError:
@@ -24,10 +27,7 @@ def _table_to_markdown(table: list[list]) -> str:
     # Clean cell values: replace newlines with spaces, strip whitespace
     cleaned = []
     for row in table:
-        cleaned.append([
-            re.sub(r'\s+', ' ', (cell or "").strip())
-            for cell in row
-        ])
+        cleaned.append([re.sub(r"\s+", " ", (cell or "").strip()) for cell in row])
 
     # Calculate column widths for alignment
     num_cols = max(len(row) for row in cleaned)
@@ -65,7 +65,7 @@ def _detect_headers_footers(pages) -> tuple[set[str], set[str]]:
         text = page.extract_text()
         if not text:
             continue
-        lines = [l.strip() for l in text.split('\n') if l.strip()]
+        lines = [line.strip() for line in text.split("\n") if line.strip()]
         if lines:
             first_lines.append(lines[0])
         if lines:
@@ -77,12 +77,13 @@ def _detect_headers_footers(pages) -> tuple[set[str], set[str]]:
     footers = set()
 
     from collections import Counter
+
     for line, count in Counter(first_lines).items():
         if count >= threshold:
             headers.add(line)
 
     # Footer pattern: "Page N" or exact repeating text
-    page_pattern = re.compile(r'^Page\s+\d+$')
+    page_pattern = re.compile(r"^Page\s+\d+$")
     for line, count in Counter(last_lines).items():
         if count >= threshold or page_pattern.match(line):
             footers.add(line)
@@ -138,20 +139,20 @@ def _extract_page_content(page, headers: set[str], footers: set[str]) -> list[tu
             continue
 
         # Clean the text: remove headers/footers, fix spacing
-        lines = text.split('\n')
+        lines = text.split("\n")
         cleaned_lines = []
         for line in lines:
             stripped = line.strip()
             if stripped in headers or stripped in footers:
                 continue
-            if re.match(r'^Page\s+\d+$', stripped):
+            if re.match(r"^Page\s+\d+$", stripped):
                 continue
-            cleaned = re.sub(r'  +', ' ', stripped)
+            cleaned = re.sub(r"  +", " ", stripped)
             if cleaned:
                 cleaned_lines.append(cleaned)
 
         if cleaned_lines:
-            content_blocks.append((gap_top, '\n'.join(cleaned_lines)))
+            content_blocks.append((gap_top, "\n".join(cleaned_lines)))
 
     # Sort by vertical position and return
     content_blocks.sort(key=lambda x: x[0])
@@ -166,9 +167,7 @@ def extract_text_from_pdf(pdf_path: Path) -> tuple[str, dict]:
         page_count, table_count, and char_count.
     """
     if not PDF_AVAILABLE:
-        raise ImportError(
-            "PDF libraries not installed. Install with: pip install pdfplumber"
-        )
+        raise ImportError("PDF libraries not installed. Install with: pip install pdfplumber")
 
     stats = {"page_count": 0, "table_count": 0, "char_count": 0}
 
@@ -229,7 +228,7 @@ def _extract_with_pypdf(pdf_path: Path, stats: dict) -> tuple[str, dict]:
             text = page.extract_text()
             if text and text.strip():
                 # Clean double spacing
-                cleaned = re.sub(r'  +', ' ', text)
+                cleaned = re.sub(r"  +", " ", text)
                 text_parts.append(f"[Page {page_num}]\n{cleaned}")
 
         full_text = "\n\n".join(text_parts)

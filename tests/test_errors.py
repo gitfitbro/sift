@@ -1,19 +1,19 @@
 """Tests for custom exception hierarchy."""
-import pytest
+
 from sift.errors import (
-    SiftError,
-    SessionNotFoundError,
-    PhaseNotFoundError,
-    TemplateNotFoundError,
-    ProviderError,
-    ProviderAuthError,
-    ProviderQuotaError,
-    ProviderModelError,
-    ProviderUnavailableError,
-    SchemaVersionError,
-    ExtractionError,
     CaptureError,
     ConfigError,
+    ExtractionError,
+    PhaseNotFoundError,
+    ProviderAuthError,
+    ProviderError,
+    ProviderModelError,
+    ProviderQuotaError,
+    ProviderUnavailableError,
+    SchemaVersionError,
+    SessionNotFoundError,
+    SiftError,
+    TemplateNotFoundError,
 )
 
 

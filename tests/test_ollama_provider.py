@@ -1,10 +1,11 @@
 """Tests for Ollama provider — all HTTP calls mocked via httpx."""
+
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -22,8 +23,10 @@ def _make_provider(**env_overrides):
     try:
         # Reset config service to pick up new env vars
         from sift.core.config_service import reset_config_service
+
         reset_config_service()
         from sift.providers.ollama_provider import OllamaProvider
+
         return OllamaProvider()
     finally:
         for k, v in old_vals.items():
@@ -32,6 +35,7 @@ def _make_provider(**env_overrides):
             else:
                 os.environ[k] = v
         from sift.core.config_service import reset_config_service
+
         reset_config_service()
 
 
@@ -43,6 +47,7 @@ def _mock_response(status_code=200, json_data=None, text=""):
     resp.text = text
     if status_code >= 400:
         import httpx
+
         resp.raise_for_status.side_effect = httpx.HTTPStatusError(
             message=f"HTTP {status_code}",
             request=MagicMock(),
@@ -96,6 +101,7 @@ class TestIsAvailable:
     @patch("sift.providers.ollama_provider._import_httpx")
     def test_connect_error(self, mock_httpx_fn):
         import httpx
+
         mock_httpx = MagicMock()
         mock_httpx.get.side_effect = httpx.ConnectError("Connection refused")
         mock_httpx_fn.return_value = mock_httpx
@@ -122,6 +128,7 @@ class TestChat:
     @patch("sift.providers.ollama_provider._import_httpx")
     def test_successful_chat(self, mock_httpx_fn):
         import httpx
+
         mock_httpx = MagicMock()
         mock_httpx.ConnectError = httpx.ConnectError
         mock_httpx.TimeoutException = httpx.TimeoutException
@@ -147,13 +154,12 @@ class TestChat:
     @patch("sift.providers.ollama_provider._import_httpx")
     def test_empty_system_prompt(self, mock_httpx_fn):
         import httpx
+
         mock_httpx = MagicMock()
         mock_httpx.ConnectError = httpx.ConnectError
         mock_httpx.TimeoutException = httpx.TimeoutException
         mock_httpx.HTTPStatusError = httpx.HTTPStatusError
-        mock_httpx.post.return_value = _mock_response(
-            200, {"message": {"content": "response"}}
-        )
+        mock_httpx.post.return_value = _mock_response(200, {"message": {"content": "response"}})
         mock_httpx_fn.return_value = mock_httpx
 
         provider = _make_provider()
@@ -168,6 +174,7 @@ class TestChat:
     @patch("sift.providers.ollama_provider._import_httpx")
     def test_connect_error_raises_unavailable(self, mock_httpx_fn):
         import httpx
+
         mock_httpx = MagicMock()
         mock_httpx.ConnectError = httpx.ConnectError
         mock_httpx.TimeoutException = httpx.TimeoutException
@@ -184,6 +191,7 @@ class TestChat:
     @patch("sift.providers.ollama_provider._import_httpx")
     def test_timeout_raises_unavailable(self, mock_httpx_fn):
         import httpx
+
         mock_httpx = MagicMock()
         mock_httpx.ConnectError = httpx.ConnectError
         mock_httpx.TimeoutException = httpx.TimeoutException
@@ -200,6 +208,7 @@ class TestChat:
     @patch("sift.providers.ollama_provider._import_httpx")
     def test_404_raises_model_error(self, mock_httpx_fn):
         import httpx
+
         mock_httpx = MagicMock()
         mock_httpx.ConnectError = httpx.ConnectError
         mock_httpx.TimeoutException = httpx.TimeoutException
@@ -218,6 +227,7 @@ class TestChat:
     @patch("sift.providers.ollama_provider._import_httpx")
     def test_500_raises_provider_error(self, mock_httpx_fn):
         import httpx
+
         mock_httpx = MagicMock()
         mock_httpx.ConnectError = httpx.ConnectError
         mock_httpx.TimeoutException = httpx.TimeoutException
@@ -270,6 +280,7 @@ class TestListModels:
     @patch("sift.providers.ollama_provider._import_httpx")
     def test_server_down_returns_empty(self, mock_httpx_fn):
         import httpx
+
         mock_httpx = MagicMock()
         mock_httpx.get.side_effect = httpx.ConnectError("refused")
         mock_httpx_fn.return_value = mock_httpx
@@ -287,11 +298,13 @@ class TestListModels:
 class TestRegistration:
     def test_in_providers_registry(self):
         from sift.providers import PROVIDERS, _register_defaults
+
         _register_defaults()
         assert "ollama" in PROVIDERS
 
     def test_get_provider_ollama(self):
         from sift.providers import get_provider, reset_provider
+
         reset_provider()
         provider = get_provider("ollama")
         assert provider.name == "ollama"
@@ -300,5 +313,6 @@ class TestRegistration:
 class TestProtocol:
     def test_satisfies_ai_provider(self):
         from sift.providers.base import AIProvider
+
         provider = _make_provider()
         assert isinstance(provider, AIProvider)

@@ -1,33 +1,27 @@
 """Tests for the layered configuration service and secrets management."""
-import os
+
 import stat
+
 import pytest
-from pathlib import Path
-from unittest.mock import patch
 
 from sift.core.config_service import (
     ConfigService,
     _deep_merge,
     _get_nested,
-    _set_nested,
     _read_toml,
+    _set_nested,
     _write_toml,
-    _global_config_path,
     get_config_service,
     reset_config_service,
-    DEFAULTS,
 )
 from sift.core.secrets import (
-    store_key,
-    get_key,
-    remove_key,
-    list_stored_providers,
-    _credentials_path,
     _read_credentials,
     _write_credentials,
-    PROVIDER_KEY_ENV,
+    get_key,
+    list_stored_providers,
+    remove_key,
+    store_key,
 )
-
 
 # ─── Helper utilities ───
 
@@ -489,6 +483,7 @@ class TestConfigIntegration:
         store_key("anthropic", "sk-from-creds")
 
         from sift.config import Config
+
         key = Config.get_provider_api_key("anthropic")
         assert key == "sk-from-creds"
 
@@ -510,5 +505,6 @@ class TestConfigIntegration:
 
         reset_config_service()
         from sift.config import Config
+
         assert Config.get_ai_provider() == "gemini"
         reset_config_service()

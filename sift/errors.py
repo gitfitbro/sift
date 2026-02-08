@@ -21,9 +21,8 @@ Exception hierarchy::
     ├── CaptureError
     └── ConfigError
 """
-from __future__ import annotations
 
-from typing import Optional
+from __future__ import annotations
 
 
 class SiftError(Exception):
@@ -36,12 +35,13 @@ class SiftError(Exception):
 
     exit_code: int = 1
 
-    def __init__(self, message: str, context: Optional[dict] = None):
+    def __init__(self, message: str, context: dict | None = None):
         self.context = context or {}
         super().__init__(message)
 
 
 # ── Resource Not Found ─────────────────────────────────────────────
+
 
 class SessionNotFoundError(SiftError):
     """Raised when a named session does not exist."""
@@ -60,7 +60,7 @@ class PhaseNotFoundError(SiftError):
         self,
         phase_id: str,
         session_name: str = "",
-        available: Optional[list[str]] = None,
+        available: list[str] | None = None,
     ):
         available_str = f". Available: {', '.join(available)}" if available else ""
         super().__init__(
@@ -81,6 +81,7 @@ class TemplateNotFoundError(SiftError):
 
 # ── Provider Errors ────────────────────────────────────────────────
 
+
 class ProviderError(SiftError):
     """Base class for AI provider errors."""
 
@@ -89,7 +90,7 @@ class ProviderError(SiftError):
         message: str,
         provider: str = "",
         model: str = "",
-        context: Optional[dict] = None,
+        context: dict | None = None,
     ):
         ctx = {"provider": provider, "model": model}
         if context:
@@ -99,25 +100,30 @@ class ProviderError(SiftError):
 
 class ProviderAuthError(ProviderError):
     """Raised when API key is missing or invalid."""
+
     pass
 
 
 class ProviderQuotaError(ProviderError):
     """Raised when provider quota/rate limit is exceeded."""
+
     pass
 
 
 class ProviderModelError(ProviderError):
     """Raised when the requested model is not found."""
+
     pass
 
 
 class ProviderUnavailableError(ProviderError):
     """Raised when the provider cannot be reached or is not configured."""
+
     pass
 
 
 # ── Schema Errors ──────────────────────────────────────────────────
+
 
 class SchemaVersionError(SiftError):
     """Raised when a YAML file has an incompatible schema version."""
@@ -135,6 +141,7 @@ class SchemaVersionError(SiftError):
 
 
 # ── Operation Errors ───────────────────────────────────────────────
+
 
 class ExtractionError(SiftError):
     """Raised when AI extraction fails."""
@@ -158,4 +165,5 @@ class CaptureError(SiftError):
 
 class ConfigError(SiftError):
     """Raised when configuration is invalid or missing."""
+
     pass

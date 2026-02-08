@@ -1,10 +1,12 @@
 """Build commands: generate outputs from completed sessions - thin CLI wrappers."""
+
 import typer
 from rich.panel import Panel
-from sift.ui import console
+
+from sift.completions import complete_format, complete_session_name
 from sift.core.build_service import BuildService
-from sift.completions import complete_session_name, complete_format
 from sift.error_handler import handle_errors
+from sift.ui import console
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -15,12 +17,18 @@ _svc = BuildService()
 @handle_errors
 def generate(
     session: str = typer.Argument(..., help="Session name", autocompletion=complete_session_name),
-    format: str = typer.Option("all", "--format", "-f", help="Output format: yaml, markdown, all", autocompletion=complete_format),
+    format: str = typer.Option(
+        "all",
+        "--format",
+        "-f",
+        help="Output format: yaml, markdown, all",
+        autocompletion=complete_format,
+    ),
 ):
     """Generate outputs from a session's extracted data."""
     result = _svc.generate_outputs(session, format)
 
-    console.print(f"\n[green bold]Outputs generated:[/green bold]\n")
+    console.print("\n[green bold]Outputs generated:[/green bold]\n")
     for label, path in result.generated_files:
         console.print(f"  [bold]{label}[/bold]: {path}")
 

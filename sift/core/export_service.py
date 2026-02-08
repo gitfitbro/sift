@@ -17,18 +17,19 @@ The ZIP archive format:
     └── outputs/
         └── *.yaml, *.md
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import logging
 import shutil
-import yaml
 import zipfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+
+import yaml
 
 from sift.models import SESSIONS_DIR, TEMPLATES_DIR, Session, SessionTemplate, ensure_dirs
 
@@ -40,6 +41,7 @@ ARCHIVE_VERSION = 1
 @dataclass
 class ExportResult:
     """Result of an export operation."""
+
     session_name: str
     format: str
     output_path: Path
@@ -50,6 +52,7 @@ class ExportResult:
 @dataclass
 class ImportResult:
     """Result of an import operation."""
+
     session_name: str
     phase_count: int
     source_path: Path
@@ -63,7 +66,7 @@ class ExportService:
         self,
         session_name: str,
         format: str = "zip",
-        output_dir: Optional[Path] = None,
+        output_dir: Path | None = None,
         include_audio: bool = False,
     ) -> ExportResult:
         """Export a session in the specified format.
@@ -129,14 +132,12 @@ class ExportService:
         elif suffix in (".yaml", ".yml"):
             return self._import_yaml(source_path, overwrite)
         else:
-            raise ValueError(
-                f"Unsupported import format '{suffix}'. Use: .zip, .json, .yaml"
-            )
+            raise ValueError(f"Unsupported import format '{suffix}'. Use: .zip, .json, .yaml")
 
     def export_template(
         self,
         template_name: str,
-        output_path: Optional[Path] = None,
+        output_path: Path | None = None,
     ) -> Path:
         """Export a template as a standalone YAML file.
 
@@ -144,6 +145,7 @@ class ExportService:
             Path to the exported template file.
         """
         from sift.core.template_service import TemplateService
+
         tmpl_svc = TemplateService()
         tmpl_path = tmpl_svc.find_template(template_name)
         template = SessionTemplate.from_file(tmpl_path)
@@ -176,9 +178,7 @@ class ExportService:
         dest_path = TEMPLATES_DIR / f"{slug}.yaml"
 
         if dest_path.exists() and not overwrite:
-            raise ValueError(
-                f"Template '{slug}' already exists. Use --overwrite to replace."
-            )
+            raise ValueError(f"Template '{slug}' already exists. Use --overwrite to replace.")
 
         TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source_path, dest_path)
@@ -188,8 +188,11 @@ class ExportService:
     # ── ZIP Export/Import ──
 
     def _export_zip(
-        self, session: Session, template: SessionTemplate,
-        output_dir: Path, include_audio: bool,
+        self,
+        session: Session,
+        template: SessionTemplate,
+        output_dir: Path,
+        include_audio: bool,
     ) -> ExportResult:
         session_dir = session.dir
         archive_name = f"{session.name}.sift.zip"
@@ -221,7 +224,13 @@ class ExportService:
                     if not phase_dir.is_dir():
                         continue
                     for f in sorted(phase_dir.iterdir()):
-                        if not include_audio and f.suffix in (".wav", ".mp3", ".m4a", ".ogg", ".webm"):
+                        if not include_audio and f.suffix in (
+                            ".wav",
+                            ".mp3",
+                            ".m4a",
+                            ".ogg",
+                            ".webm",
+                        ):
                             continue
                         arc_path = f"{prefix}/phases/{phase_dir.name}/{f.name}"
                         zf.write(f, arc_path)
@@ -253,8 +262,9 @@ class ExportService:
             )
 
         size = archive_path.stat().st_size
-        logger.info("Exported session '%s' as ZIP (%d files, %d bytes)",
-                     session.name, file_count, size)
+        logger.info(
+            "Exported session '%s' as ZIP (%d files, %d bytes)", session.name, file_count, size
+        )
         return ExportResult(
             session_name=session.name,
             format="zip",
@@ -294,7 +304,7 @@ class ExportService:
                 if name.endswith("/"):
                     continue
                 # Strip prefix to get relative path
-                rel = name[len(prefix) + 1:]
+                rel = name[len(prefix) + 1 :]
                 if rel == "manifest.json":
                     continue
                 dest_file = dest_dir / rel
@@ -311,7 +321,9 @@ class ExportService:
                     if actual_hash != expected_hash:
                         logger.warning(
                             "Checksum mismatch for %s: expected %s, got %s",
-                            rel_path, expected_hash[:12], actual_hash[:12],
+                            rel_path,
+                            expected_hash[:12],
+                            actual_hash[:12],
                         )
 
         # Count phases
@@ -329,7 +341,10 @@ class ExportService:
     # ── JSON Export/Import ──
 
     def _export_json(
-        self, session: Session, template: SessionTemplate, output_dir: Path,
+        self,
+        session: Session,
+        template: SessionTemplate,
+        output_dir: Path,
     ) -> ExportResult:
         data = self._build_export_data(session, template)
         output_path = output_dir / f"{session.name}-export.json"
@@ -355,7 +370,10 @@ class ExportService:
     # ── YAML Export/Import ──
 
     def _export_yaml(
-        self, session: Session, template: SessionTemplate, output_dir: Path,
+        self,
+        session: Session,
+        template: SessionTemplate,
+        output_dir: Path,
     ) -> ExportResult:
         data = self._build_export_data(session, template)
         output_path = output_dir / f"{session.name}-export.yaml"
@@ -415,13 +433,14 @@ class ExportService:
         return data
 
     def _import_from_data(
-        self, data: dict, source_path: Path, overwrite: bool,
+        self,
+        data: dict,
+        source_path: Path,
+        overwrite: bool,
     ) -> ImportResult:
         """Import a session from a JSON/YAML data dict."""
         if "session" not in data or "template" not in data:
-            raise ValueError(
-                "Invalid import data: missing 'session' and/or 'template' keys"
-            )
+            raise ValueError("Invalid import data: missing 'session' and/or 'template' keys")
 
         session_meta = data["session"]
         session_name = session_meta["name"]
@@ -443,13 +462,10 @@ class ExportService:
             metadata=data["template"].get("metadata", {}),
         )
         # Use from_dict for proper parsing of phases/outputs
-        from sift.models import PhaseTemplate, OutputSpec
-        template.phases = [
-            PhaseTemplate.from_dict(p) for p in data["template"].get("phases", [])
-        ]
-        template.outputs = [
-            OutputSpec.from_dict(o) for o in data["template"].get("outputs", [])
-        ]
+        from sift.models import OutputSpec, PhaseTemplate
+
+        template.phases = [PhaseTemplate.from_dict(p) for p in data["template"].get("phases", [])]
+        template.outputs = [OutputSpec.from_dict(o) for o in data["template"].get("outputs", [])]
 
         session = Session.create(session_name, template)
 
@@ -482,8 +498,12 @@ class ExportService:
         session.status = session_meta.get("status", "active")
         session.save()
 
-        logger.info("Imported session '%s' from %s (%d phases)",
-                     session_name, source_path.suffix, len(session.phases))
+        logger.info(
+            "Imported session '%s' from %s (%d phases)",
+            session_name,
+            source_path.suffix,
+            len(session.phases),
+        )
         return ImportResult(
             session_name=session_name,
             phase_count=len(session.phases),

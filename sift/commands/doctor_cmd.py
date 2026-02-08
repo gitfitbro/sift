@@ -1,4 +1,5 @@
 """Diagnostic command: check environment setup and provider health."""
+
 from __future__ import annotations
 
 import logging
@@ -7,7 +8,7 @@ import sys
 import typer
 from rich.table import Table
 
-from sift.ui import console, ICONS
+from sift.ui import ICONS, console
 
 app = typer.Typer(no_args_is_help=False)
 logger = logging.getLogger("sift.doctor")
@@ -23,26 +24,37 @@ def doctor(
     # 1. Python version
     py_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     py_ok = sys.version_info >= (3, 10)
-    checks.append(("Python version", py_ok, f"{py_version} {'(OK)' if py_ok else '(requires 3.10+)'}"))
+    checks.append(
+        ("Python version", py_ok, f"{py_version} {'(OK)' if py_ok else '(requires 3.10+)'}")
+    )
 
     # 2. Data directory
     from sift.core.config_service import get_config_service
+
     config_svc = get_config_service()
     data_dir = config_svc.get_data_dir()
     data_ok = data_dir.exists()
-    checks.append(("Data directory", data_ok, f"{data_dir} {'(exists)' if data_ok else '(not found)'}"))
+    checks.append(
+        ("Data directory", data_ok, f"{data_dir} {'(exists)' if data_ok else '(not found)'}")
+    )
 
     # 3. Templates directory
     templates_dir = data_dir / "templates"
     tmpl_ok = templates_dir.exists()
     tmpl_count = 0
     if tmpl_ok:
-        tmpl_count = len(list(templates_dir.glob("*.yaml"))) + len(list(templates_dir.glob("*.yml")))
-    checks.append((
-        "Templates",
-        tmpl_ok,
-        f"{tmpl_count} templates in {templates_dir}" if tmpl_ok else f"{templates_dir} not found",
-    ))
+        tmpl_count = len(list(templates_dir.glob("*.yaml"))) + len(
+            list(templates_dir.glob("*.yml"))
+        )
+    checks.append(
+        (
+            "Templates",
+            tmpl_ok,
+            f"{tmpl_count} templates in {templates_dir}"
+            if tmpl_ok
+            else f"{templates_dir} not found",
+        )
+    )
 
     # 4. Sessions directory
     sessions_dir = data_dir / "sessions"
@@ -51,6 +63,7 @@ def doctor(
 
     # 5. Provider availability
     from sift.core.secrets import list_stored_providers
+
     key_status = list_stored_providers()
     for provider_name, status in key_status.items():
         has_key = status in ("env", "keyring", "file", "no key needed")
@@ -58,6 +71,7 @@ def doctor(
         if has_key and verbose:
             try:
                 from sift.providers import PROVIDERS, _register_defaults
+
                 _register_defaults()
                 if provider_name in PROVIDERS:
                     p = PROVIDERS[provider_name]()
@@ -87,17 +101,21 @@ def doctor(
             dep_ok = True
         except ImportError:
             dep_ok = False
-        checks.append((
-            f"Optional: {description}",
-            dep_ok,
-            f"{module_name} {'installed' if dep_ok else 'not installed'}",
-        ))
+        checks.append(
+            (
+                f"Optional: {description}",
+                dep_ok,
+                f"{module_name} {'installed' if dep_ok else 'not installed'}",
+            )
+        )
 
     # 7. Config file validity
     paths = config_svc.config_paths()
     for config_name, config_detail in paths.items():
         exists = "exists" in config_detail
-        checks.append((f"Config: {config_name}", exists or config_name == "project_config", config_detail))
+        checks.append(
+            (f"Config: {config_name}", exists or config_name == "project_config", config_detail)
+        )
 
     # Render results
     table = Table(title="sift doctor", show_header=True, border_style="cyan")
@@ -110,7 +128,11 @@ def doctor(
         icon = ICONS["complete"] if passed else ICONS["error"]
         table.add_row(name, icon, detail)
         # Optional deps and project config are not required
-        if not passed and not name.startswith("Optional:") and not name.startswith("Config: project"):
+        if (
+            not passed
+            and not name.startswith("Optional:")
+            and not name.startswith("Config: project")
+        ):
             all_ok = False
 
     console.print(table)

@@ -1,8 +1,9 @@
 """Google Gemini AI provider."""
+
 from __future__ import annotations
+
 import logging
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("sift.providers.gemini")
 
@@ -24,6 +25,7 @@ def _import_genai():
     """Import google.genai with helpful error on failure."""
     try:
         import google.genai as genai
+
         return genai
     except ImportError:
         raise ImportError(
@@ -39,8 +41,8 @@ class GeminiProvider:
     name = "gemini"
 
     def __init__(self):
-        from sift.core.secrets import get_key
         from sift.core.config_service import get_config_service
+        from sift.core.secrets import get_key
 
         self.api_key = get_key("gemini")
         self.model = get_config_service().get_provider_model("gemini")
@@ -68,23 +70,28 @@ class GeminiProvider:
             return response.text
         except Exception as e:
             from sift.errors import (
-                ProviderAuthError, ProviderQuotaError,
-                ProviderModelError, ProviderError,
+                ProviderAuthError,
+                ProviderError,
+                ProviderModelError,
+                ProviderQuotaError,
             )
+
             err_msg = str(e).lower()
             if "quota" in err_msg or "resource_exhausted" in err_msg or "429" in err_msg:
                 raise ProviderQuotaError(
                     "Gemini quota exceeded.\n"
                     "Free tier limit reached. Check billing at "
                     "https://ai.google.dev/gemini-api/docs/rate-limits",
-                    provider=self.name, model=self.model,
+                    provider=self.name,
+                    model=self.model,
                 ) from e
             if "invalid" in err_msg and "key" in err_msg:
                 raise ProviderAuthError(
                     "Gemini API key invalid.\n"
                     "Check that GOOGLE_API_KEY is valid and the "
                     "Generative Language API is enabled.",
-                    provider=self.name, model=self.model,
+                    provider=self.name,
+                    model=self.model,
                 ) from e
             if "not found" in err_msg or "does not exist" in err_msg:
                 available = "\n".join(f"  {m} - {d}" for m, d in GEMINI_MODELS.items())
@@ -92,14 +99,16 @@ class GeminiProvider:
                     f"Model '{self.model}' not found.\n"
                     f"Available models:\n{available}\n\n"
                     "Set via: GEMINI_MODEL=model-name or --model flag",
-                    provider=self.name, model=self.model,
+                    provider=self.name,
+                    model=self.model,
                 ) from e
             raise ProviderError(
                 f"Gemini API error: {e}",
-                provider=self.name, model=self.model,
+                provider=self.name,
+                model=self.model,
             ) from e
 
-    def transcribe(self, audio_path: Path) -> Optional[str]:
+    def transcribe(self, audio_path: Path) -> str | None:
         """Transcribe audio using Gemini's file upload API."""
         try:
             genai = _import_genai()
@@ -124,7 +133,9 @@ class GeminiProvider:
             return None
         except Exception as e:
             from sift.errors import ProviderError
+
             raise ProviderError(
                 f"Gemini transcription failed: {e}",
-                provider=self.name, model=self.model,
+                provider=self.name,
+                model=self.model,
             ) from e

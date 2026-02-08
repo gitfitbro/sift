@@ -1,18 +1,19 @@
 """Tests for the project analyzer."""
+
 import textwrap
-import yaml
-import pytest
-from pathlib import Path
 from unittest.mock import MagicMock
 
-from sift.analyzers.models import (
-    DependencyInfo, FileAnalysis, ProjectStructure, TemplateRecommendation,
-)
-from sift.analyzers.python_ast_analyzer import analyze_python_file, can_analyze
-from sift.analyzers import tree_sitter_analyzer
-from sift.analyzers.project_analyzer import ProjectAnalyzer
-from sift.analyzers import ai_analyzer
+import pytest
 
+from sift.analyzers import ai_analyzer, tree_sitter_analyzer
+from sift.analyzers.models import (
+    DependencyInfo,
+    FileAnalysis,
+    ProjectStructure,
+    TemplateRecommendation,
+)
+from sift.analyzers.project_analyzer import ProjectAnalyzer
+from sift.analyzers.python_ast_analyzer import analyze_python_file, can_analyze
 
 # ── Python AST Analyzer ─────────────────────────────────────────────────
 
@@ -20,7 +21,8 @@ from sift.analyzers import ai_analyzer
 class TestPythonAstAnalyzer:
     def test_analyze_simple_file(self, tmp_path):
         py_file = tmp_path / "example.py"
-        py_file.write_text(textwrap.dedent('''\
+        py_file.write_text(
+            textwrap.dedent('''\
             """Module docstring."""
             import os
             from pathlib import Path
@@ -37,7 +39,8 @@ class TestPythonAstAnalyzer:
 
             async def async_func():
                 pass
-        '''))
+        ''')
+        )
 
         result = analyze_python_file(py_file)
         assert result.language == "python"
@@ -113,8 +116,13 @@ class TestAIAnalyzer:
             total_files=7,
             total_lines=500,
             file_analyses=[
-                FileAnalysis(path=tmp_path / "main.py", language="python", line_count=100,
-                             functions=["main", "run"], complexity_score=5.0),
+                FileAnalysis(
+                    path=tmp_path / "main.py",
+                    language="python",
+                    line_count=100,
+                    functions=["main", "run"],
+                    complexity_score=5.0,
+                ),
             ],
             dependencies=[DependencyInfo(name="flask"), DependencyInfo(name="pytest")],
             entry_points=["main.py"],
@@ -187,7 +195,8 @@ class TestProjectAnalyzer:
         project.mkdir()
 
         # Python files
-        (project / "main.py").write_text(textwrap.dedent('''\
+        (project / "main.py").write_text(
+            textwrap.dedent('''\
             """Main entry point."""
             import sys
             from pathlib import Path
@@ -197,33 +206,40 @@ class TestProjectAnalyzer:
 
             if __name__ == "__main__":
                 main()
-        '''))
+        ''')
+        )
 
         src = project / "src"
         src.mkdir()
         (src / "__init__.py").write_text("")
-        (src / "utils.py").write_text(textwrap.dedent('''\
+        (src / "utils.py").write_text(
+            textwrap.dedent("""\
             def helper(x):
                 return x + 1
-        '''))
+        """)
+        )
 
         # Test file
         tests = project / "tests"
         tests.mkdir()
-        (tests / "test_main.py").write_text(textwrap.dedent('''\
+        (tests / "test_main.py").write_text(
+            textwrap.dedent("""\
             def test_main():
                 assert True
-        '''))
+        """)
+        )
 
         # pyproject.toml
-        (project / "pyproject.toml").write_text(textwrap.dedent('''\
+        (project / "pyproject.toml").write_text(
+            textwrap.dedent("""\
             [project]
             name = "my-project"
             dependencies = [
                 "flask>=2.0",
                 "pyyaml>=6.0",
             ]
-        '''))
+        """)
+        )
 
         # A JS file
         (project / "script.js").write_text("function greet() { return 'hi'; }\n")
@@ -349,7 +365,9 @@ class TestProjectAnalyzer:
 
 class TestDependencyParsers:
     def test_parse_package_json(self, tmp_path):
-        (tmp_path / "package.json").write_text('{"dependencies": {"react": "^18.0"}, "devDependencies": {"jest": "^29.0"}}')
+        (tmp_path / "package.json").write_text(
+            '{"dependencies": {"react": "^18.0"}, "devDependencies": {"jest": "^29.0"}}'
+        )
 
         analyzer = ProjectAnalyzer()
         deps = analyzer._parse_package_json(tmp_path / "package.json")
@@ -368,7 +386,8 @@ class TestDependencyParsers:
         assert "pytest" in names
 
     def test_parse_go_mod(self, tmp_path):
-        (tmp_path / "go.mod").write_text(textwrap.dedent("""\
+        (tmp_path / "go.mod").write_text(
+            textwrap.dedent("""\
             module example.com/myapp
 
             go 1.21
@@ -377,7 +396,8 @@ class TestDependencyParsers:
                 github.com/gin-gonic/gin v1.9.1
                 github.com/stretchr/testify v1.8.4
             )
-        """))
+        """)
+        )
 
         analyzer = ProjectAnalyzer()
         deps = analyzer._parse_go_mod(tmp_path / "go.mod")
@@ -385,14 +405,16 @@ class TestDependencyParsers:
         assert "github.com/gin-gonic/gin" in names
 
     def test_parse_cargo_toml(self, tmp_path):
-        (tmp_path / "Cargo.toml").write_text(textwrap.dedent("""\
+        (tmp_path / "Cargo.toml").write_text(
+            textwrap.dedent("""\
             [package]
             name = "myapp"
 
             [dependencies]
             serde = "1.0"
             tokio = { version = "1.0", features = ["full"] }
-        """))
+        """)
+        )
 
         analyzer = ProjectAnalyzer()
         deps = analyzer._parse_cargo_toml(tmp_path / "Cargo.toml")

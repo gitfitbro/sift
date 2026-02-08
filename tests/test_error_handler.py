@@ -1,8 +1,10 @@
 """Tests for the unified CLI error handler."""
+
 import pytest
 import typer
-from sift.error_handler import handle_errors, _debug_mode
-from sift.errors import SiftError, SessionNotFoundError
+
+from sift.error_handler import _debug_mode, handle_errors
+from sift.errors import SessionNotFoundError, SiftError
 
 
 class TestHandleErrorsDecorator:

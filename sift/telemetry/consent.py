@@ -1,7 +1,7 @@
 """Telemetry consent management - opt-in only, GDPR/CCPA compliant."""
 
-import os
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger("sift.telemetry.consent")

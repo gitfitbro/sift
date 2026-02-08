@@ -1,14 +1,15 @@
 """Capture form widget - file path or text input for phase capture."""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 from textual import on
-from textual.widget import Widget
-from textual.widgets import Button, Input, TextArea, Static
-from textual.containers import Vertical, Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.reactive import reactive
+from textual.widget import Widget
+from textual.widgets import Button, Input, Static, TextArea
 
 
 class CaptureForm(Widget):
@@ -16,9 +17,10 @@ class CaptureForm(Widget):
 
     class Submitted(Message):
         """Fired when the user submits capture data."""
+
         def __init__(self, mode: str, content: str) -> None:
             super().__init__()
-            self.mode = mode      # "text" or "file"
+            self.mode = mode  # "text" or "file"
             self.content = content
 
     class Skipped(Message):
