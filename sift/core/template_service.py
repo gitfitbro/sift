@@ -9,6 +9,7 @@ from pathlib import Path
 import yaml
 
 from sift.core import TemplateDetail, TemplateInfo, TemplatePhaseDetail
+from sift.errors import SiftError
 from sift.models import TEMPLATES_DIR, SessionTemplate, ensure_dirs
 
 logger = logging.getLogger("sift.core.template")
@@ -35,7 +36,7 @@ class TemplateService:
                         output_count=len(t.outputs),
                     )
                 )
-            except Exception as e:
+            except (SiftError, yaml.YAMLError) as e:
                 logger.warning("Failed to load template %s: %s", tp.stem, e)
                 results.append(
                     TemplateInfo(
@@ -118,8 +119,10 @@ class TemplateService:
             t = SessionTemplate.from_file(path)
         except SiftError:
             raise
-        except Exception as e:
-            raise SiftError(f"Invalid template: {e}") from e
+        except yaml.YAMLError as e:
+            raise SiftError(f"Invalid template YAML: {e}") from e
+        except OSError as e:
+            raise SiftError(f"Could not read template file: {e}") from e
 
         dest = TEMPLATES_DIR / path.name
         shutil.copy2(path, dest)
@@ -160,6 +163,7 @@ class TemplateService:
             SiftError: If template is invalid.
         """
         import tempfile
+        import urllib.error
         import urllib.request
 
         from sift.errors import CaptureError, SiftError
@@ -171,7 +175,7 @@ class TemplateService:
             with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as tmp:
                 tmp_path = Path(tmp.name)
                 urllib.request.urlretrieve(url, tmp_path)
-        except Exception as e:
+        except (urllib.error.URLError, OSError) as e:
             raise CaptureError(
                 f"Failed to download template from {url}: {e}",
                 file_path=url,
@@ -183,7 +187,7 @@ class TemplateService:
         except SiftError:
             tmp_path.unlink(missing_ok=True)
             raise
-        except Exception as e:
+        except (yaml.YAMLError, OSError) as e:
             tmp_path.unlink(missing_ok=True)
             raise SiftError(f"Downloaded file is not a valid template: {e}") from e
 
@@ -224,7 +228,7 @@ class TemplateService:
                 full = SessionTemplate.from_file(path)
                 if any(query_lower in tag.lower() for tag in full.tags):
                     results.append(t)
-            except Exception:
+            except (SiftError, yaml.YAMLError):
                 pass
 
         return results

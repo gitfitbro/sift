@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from .base import BaseProvider
+
 logger = logging.getLogger("sift.providers.ollama")
 
 # Well-known Ollama models shown by `sift models` when server is offline
@@ -37,16 +39,17 @@ def _import_httpx():
         )
 
 
-class OllamaProvider:
+class OllamaProvider(BaseProvider):
     """Local AI provider using Ollama (llama3.2, mistral, etc.)."""
 
     name = "ollama"
+    max_context_window = 32768
 
     def __init__(self):
+        super().__init__()
         from sift.core.config_service import get_config_service
 
         config = get_config_service()
-        self.model = config.get_provider_model("ollama")
         self.endpoint = config.get("providers.ollama.endpoint", "http://localhost:11434")
 
     def is_available(self) -> bool:

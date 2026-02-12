@@ -169,6 +169,15 @@ def extract_text_from_pdf(pdf_path: Path) -> tuple[str, dict]:
     if not PDF_AVAILABLE:
         raise ImportError("PDF libraries not installed. Install with: pip install pdfplumber")
 
+    # Basic file validation
+    try:
+        with open(pdf_path, "rb") as f:
+            header = f.read(5)
+            if header != b"%PDF-":
+                raise ValueError(f"Invalid PDF file header: {header!r}. File may be corrupt or not a PDF.")
+    except (OSError, ValueError) as e:
+        raise ValueError(f"Could not validate PDF file: {e}") from e
+
     stats = {"page_count": 0, "table_count": 0, "char_count": 0}
 
     if PDF_ENGINE == "pdfplumber":

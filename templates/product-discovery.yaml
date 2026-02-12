@@ -1,0 +1,69 @@
+name: "Product Discovery & Sentiment Analysis"
+description: "Analyze user sentiment and feedback to identify product segments, pain points, and subscription-worthy features."
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - product-discovery
+    - sentiment-analysis
+    - roadmap
+
+phases:
+  - id: segment_identification
+    name: "User Segment Identification"
+    prompt: >
+      Analyze the provided comments and identify distinct user archetypes. 
+      Look for patterns like:
+      - ADHD/Neurodivergent users looking for focus.
+      - Competitive/High-performance readers.
+      - Casual/Entertainment-seeking users.
+      - Kindle/E-reader users looking for integration.
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: segments
+        type: list
+        prompt: "Identify and describe 3-5 major user segments based on the data."
+
+  - id: feature_desires
+    name: "Feature Desires & Pain Points"
+    prompt: >
+      What are people asking for? What problems does this solve for them?
+      Look for mentions of music, Kindle, specific speeds, focus, or flow states.
+    depends_on: segment_identification
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: requested_features
+        type: list
+        prompt: "List specific features or integrations users are requesting."
+      - id: pain_points
+        type: list
+        prompt: "List the core frustrations or challenges users currently have with reading."
+
+  - id: subscription_hypotheses
+    name: "Subscription & Value Hypotheses"
+    prompt: >
+      Based on the intensity of feedback and specific desires, what features would make this a 'must-have' subscription?
+      Consider things like:
+      - PDF/Kindle ingestion.
+      - Custom audio-sync (jazz/lo-fi).
+      - Progress tracking & cognitive training.
+    depends_on: feature_desires
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: value_propositions
+        type: list
+        prompt: "Define 3 clear value propositions that justify a subscription."
+      - id: monetization_ideas
+        type: list
+        prompt: "Suggest specific tiers or features that could be behind a paywall."
+
+outputs:
+  - type: markdown
+    template: product-strategy-summary

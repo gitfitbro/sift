@@ -35,10 +35,18 @@ def transcribe_audio(audio_path: Path) -> str:
     mp3_path = audio_path.with_suffix(".mp3")
     if audio_path.suffix != ".mp3":
         logger.info("Converting %s to mp3...", audio_path.suffix)
-        subprocess.run(
+        result = subprocess.run(
             ["ffmpeg", "-i", str(audio_path), "-q:a", "2", str(mp3_path), "-y"],
             capture_output=True,
+            text=True,
         )
+        if result.returncode != 0:
+            from sift.errors import CaptureError
+
+            raise CaptureError(
+                f"Failed to convert audio to mp3: {result.stderr}",
+                file_path=str(audio_path),
+            )
     else:
         mp3_path = audio_path
 
@@ -152,13 +160,29 @@ For 'text' types, use plain strings. For 'boolean' types, use true/false.
 
 Return ONLY the YAML, no markdown fences, no preamble, no explanation."""
 
+    # Token limit check (rough estimate: 4 chars = 1 token)
+    estimated_tokens = (len(system_prompt) + len(user_prompt)) // 4
+    if estimated_tokens > provider.max_context_window:
+        from sift.errors import ExtractionError
+
+        raise ExtractionError(
+            f"Transcript is too long for {provider.name} ({estimated_tokens:,} estimated tokens, "
+            f"limit is {provider.max_context_window:,}). "
+            "Try using a model with a larger context window or splitting the session.",
+            phase_id=phase_name,
+        )
+
     logger.info("Extracting with %s (%s)...", provider.name, provider.model)
+
+    from sift.errors import ProviderError
 
     try:
         response_text = provider.chat(system_prompt, user_prompt, max_tokens=8000).strip()
-    except (RuntimeError, Exception) as e:
-        logger.error("Provider error during extraction: %s", e)
+    except ProviderError:
         raise
+    except Exception as e:
+        logger.error("Unexpected error during extraction: %s", e)
+        raise ProviderError(f"Extraction failed: {e}", provider=provider.name) from e
 
     # Clean up response (remove markdown fences if present)
     response_text = _strip_markdown_fences(response_text)
@@ -183,7 +207,7 @@ Return ONLY the YAML, no markdown fences, no preamble, no explanation."""
             if not isinstance(extracted, dict):
                 extracted = {"raw": extracted}
             return extracted
-        except (yaml.YAMLError, Exception):
+        except (yaml.YAMLError, ProviderError):
             logger.warning("Could not parse extraction as YAML. Saving raw response.")
             return {"_raw_response": response_text}
 
@@ -213,9 +237,12 @@ def generate_summary(
     logger.info("Generating summary with %s...", provider.name)
     try:
         return provider.chat("", user_prompt, max_tokens=4000)
-    except (RuntimeError, Exception) as e:
+    except ProviderError as e:
         logger.error("Provider error during summary: %s", e)
         logger.warning("Falling back to local summary.")
+        return _generate_summary_local(session_data)
+    except Exception as e:
+        logger.error("Unexpected error during summary: %s", e)
         return _generate_summary_local(session_data)
 
 

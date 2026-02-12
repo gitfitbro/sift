@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from .base import BaseProvider
+
 logger = logging.getLogger("sift.providers.gemini")
 
 # Available Gemini models for easy reference
@@ -37,18 +39,9 @@ def _import_genai():
         )
 
 
-class GeminiProvider:
+class GeminiProvider(BaseProvider):
     name = "gemini"
-
-    def __init__(self):
-        from sift.core.config_service import get_config_service
-        from sift.core.secrets import get_key
-
-        self.api_key = get_key("gemini")
-        self.model = get_config_service().get_provider_model("gemini")
-
-    def is_available(self) -> bool:
-        return self.api_key is not None
+    max_context_window = 1000000
 
     def chat(self, system: str, user: str, max_tokens: int = 4000) -> str:
         """Send a chat message and return the response text."""

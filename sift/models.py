@@ -6,6 +6,8 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+import os
+import tempfile
 
 import yaml
 
@@ -121,6 +123,44 @@ class SessionTemplate:
         """Template repository URL from metadata."""
         return str(self.metadata.get("repository", ""))
 
+    def validate(self):
+        """Validate template for logical consistency.
+
+        Checks:
+        - All 'depends_on' references exist.
+        - No circular dependencies between phases.
+
+        Raises:
+            SiftError: If validation fails.
+        """
+        from sift.errors import SiftError
+
+        phase_ids = {p.id for p in self.phases}
+        adj = {}
+
+        for p in self.phases:
+            if p.depends_on:
+                if p.depends_on not in phase_ids:
+                    raise SiftError(
+                        f"Phase '{p.id}' depends on non-existent phase '{p.depends_on}'",
+                        context={"phase": p.id, "depends_on": p.depends_on},
+                    )
+                adj[p.id] = p.depends_on
+
+        # Cycle detection
+        for start_node in phase_ids:
+            visited = set()
+            curr = start_node
+            while curr in adj:
+                if curr in visited:
+                    path = " -> ".join(list(visited) + [curr])
+                    raise SiftError(
+                        f"Circular dependency detected in template phases: {path}",
+                        context={"path": path},
+                    )
+                visited.add(curr)
+                curr = adj[curr]
+
     @classmethod
     def from_file(cls, path: Path) -> SessionTemplate:
         from sift.errors import SchemaVersionError
@@ -143,6 +183,8 @@ class SessionTemplate:
             outputs=[OutputSpec.from_dict(o) for o in d.get("outputs", [])],
             metadata=d.get("metadata", {}),
         )
+        tmpl.validate()
+        return tmpl
 
     def to_dict(self) -> dict:
         return {
@@ -297,8 +339,17 @@ class Session:
                 for pid, ps in self.phases.items()
             },
         }
-        with open(self.dir / "session.yaml", "w") as f:
-            yaml.dump(state, f, default_flow_style=False, sort_keys=False)
+        dest = self.dir / "session.yaml"
+        with tempfile.NamedTemporaryFile("w", dir=self.dir, delete=False) as tf:
+            yaml.dump(state, tf, default_flow_style=False, sort_keys=False)
+            temp_name = tf.name
+
+        try:
+            os.replace(temp_name, dest)
+        except Exception:
+            if os.path.exists(temp_name):
+                os.unlink(temp_name)
+            raise
 
     @classmethod
     def load(cls, name: str) -> Session:

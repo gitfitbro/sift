@@ -15,6 +15,7 @@ from sift.core import (
     SessionInfo,
 )
 from sift.core.template_service import TemplateService
+from sift.errors import SiftError
 from sift.models import (
     SESSIONS_DIR,
     Session,
@@ -29,8 +30,8 @@ logger = logging.getLogger("sift.core.session")
 class SessionService:
     """Manages session lifecycle operations."""
 
-    def __init__(self):
-        self._template_svc = TemplateService()
+    def __init__(self, template_service: TemplateService | None = None):
+        self._template_svc = template_service or TemplateService()
 
     def create_session(self, template_arg: str, name: str | None = None) -> SessionDetail:
         """Create a new session from a template argument.
@@ -110,7 +111,7 @@ class SessionService:
                         updated_at=s.updated_at,
                     )
                 )
-            except Exception as e:
+            except (SiftError, yaml.YAMLError) as e:
                 logger.warning("Failed to load session %s: %s", sd.name, e)
                 results.append(
                     SessionInfo(
@@ -199,7 +200,7 @@ class SessionService:
         try:
             s = Session.load(session_name)
             return list(s.phases.keys())
-        except Exception:
+        except SiftError:
             return []
 
     def get_template_names(self) -> list[str]:

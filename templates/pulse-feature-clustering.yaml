@@ -1,0 +1,44 @@
+name: "Pulse Feature Clustering"
+description: "Deeper dive into user comments to cluster specific feature requests and determine 'Pro' vs 'Free' boundaries."
+
+metadata:
+  author: sirrele
+  version: "1.0"
+
+phases:
+  - id: cluster_analysis
+    name: "Feature Cluster Identification"
+    prompt: >
+      Analyze the full set of comments. Group feature requests into clusters. 
+      For each cluster, note the 'intensity' (how many people asked) and 'willingness to pay' indicator (e.g. asking for Kindle integration usually implies a power user).
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: clusters
+        type: list
+        prompt: "Identify and describe 3-5 feature clusters (e.g. 'Platform Extensions', 'Audio/Visual Polish', 'Content Mastery')."
+
+  - id: tier_boundary_definition
+    name: "Tier Boundary Definition"
+    prompt: >
+      Based on the clusters, determine what belongs in the Free tier vs the Pro tier.
+      The Pro tier must feel high-value and indispensable for daily use.
+    depends_on: cluster_analysis
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: free_features
+        type: list
+        prompt: "Features for the Free tier."
+      - id: pro_features
+        type: list
+        prompt: "Features that justify a Pro subscription."
+      - id: killer_feature
+        type: text
+        prompt: "Identify the single 'killer feature' that would drive most conversions."
+
+outputs:
+  - type: markdown
+    template: tier-definition-summary

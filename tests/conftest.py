@@ -126,6 +126,7 @@ def mock_provider():
     provider = MagicMock()
     provider.name = "mock"
     provider.model = "mock-model-1"
+    provider.max_context_window = 128000
     provider.is_available.return_value = True
     provider.chat.return_value = "key_points:\n  - Point 1\n  - Point 2\nsummary: Test summary"
     provider.transcribe.return_value = "This is a mock transcription."

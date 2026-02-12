@@ -20,6 +20,10 @@ AUDIO_EXTENSIONS = {".mp3", ".wav", ".webm", ".m4a", ".ogg", ".flac", ".mp4", ".
 TEXT_EXTENSIONS = {".txt", ".md", ".text"}
 PDF_EXTENSIONS = {".pdf"}
 
+# File size limits (bytes)
+MAX_AUDIO_SIZE = 50 * 1024 * 1024  # 50MB
+MAX_TEXT_SIZE = 20 * 1024 * 1024   # 20MB
+
 
 class ExtractionService:
     """Handles capture, transcription, and structured data extraction."""
@@ -37,7 +41,7 @@ class ExtractionService:
         Raises:
             SessionNotFoundError: If session not found.
             PhaseNotFoundError: If phase not found.
-            CaptureError: If file not found or unsupported file type.
+            CaptureError: If file not found, unsupported file type, or too large.
         """
         ensure_dirs()
         s = Session.load(session_name)
@@ -58,9 +62,24 @@ class ExtractionService:
                 file_path=str(file_path),
             )
 
+        # Check file size limits
+        suffix = file_path.suffix.lower()
+        size = file_path.stat().st_size
+        if suffix in AUDIO_EXTENSIONS and size > MAX_AUDIO_SIZE:
+            raise CaptureError(
+                f"Audio file too large: {size / 1024 / 1024:.1f}MB (limit: {MAX_AUDIO_SIZE / 1024 / 1024}MB)",
+                phase_id=phase_id,
+                file_path=str(file_path),
+            )
+        if (suffix in TEXT_EXTENSIONS or suffix in PDF_EXTENSIONS) and size > MAX_TEXT_SIZE:
+            raise CaptureError(
+                f"Document too large: {size / 1024 / 1024:.1f}MB (limit: {MAX_TEXT_SIZE / 1024 / 1024}MB)",
+                phase_id=phase_id,
+                file_path=str(file_path),
+            )
+
         ps = s.phases[phase_id]
         phase_dir = s.phase_dir(phase_id)
-        suffix = file_path.suffix.lower()
         now = datetime.now().isoformat()
 
         if suffix in AUDIO_EXTENSIONS:
