@@ -176,7 +176,7 @@ class SessionTemplate:
                 expected_version=SCHEMA_VERSION_TEMPLATE,
             )
 
-        return cls(
+        tmpl = cls(
             name=d["name"],
             description=d.get("description", ""),
             phases=[PhaseTemplate.from_dict(p) for p in d.get("phases", [])],
