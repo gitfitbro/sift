@@ -1,0 +1,237 @@
+name: "Orchestrator Workflows"
+description: >
+  Captures the complete workflow model for an autonomous task orchestration system.
+  Covers the dispatch cycle, agent lifecycle, session management, communication
+  protocols, and failure recovery patterns. Designed for chip-command but applicable
+  to any multi-agent orchestration system.
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - orchestration
+    - workflow
+    - agents
+    - dispatch
+  license: MIT
+
+phases:
+  - id: dispatch_cycle
+    name: "Dispatch Cycle"
+    prompt: >
+      Describe the core dispatch loop. How does the orchestrator scan for work,
+      assess tasks, match them to agents, and dispatch execution? What triggers
+      each cycle? What are the timing intervals and concurrency limits?
+
+      Cover: scan interval, task selection criteria, agent matching logic,
+      dispatch attempts and backoff, cycle completion logging.
+
+      Key constants (from DispatcherConfig):
+      - scanIntervalMs: 30,000 (30s cycle interval)
+      - maxConcurrentAgents: 3 (parallel dispatch chunk size)
+      - assessmentTtlMs: 86,400,000 (24h autonomy assessment cache)
+      - maxDispatchAttempts: 3 (per-task retry limit)
+      - minDispatchIntervalMs: 300,000 (5min rate limit between retries)
+      - Task queue backoff: 15min base * 2^(attempts-1) = 15m, 30m, 60m, 120m
+      - Priority ordering: urgent(1) > high(2) > medium(3) > low(4), FIFO within
+      - Scheduler advisory lock ID: 42,001 (PostgreSQL pg_try_advisory_lock)
+      - Agent matching weights: capability(50%) + load(20%) + history(30%)
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: cycle_steps
+        type: list
+        prompt: "List each step in the dispatch cycle in order, with timing"
+      - id: task_selection
+        type: text
+        prompt: "How are tasks selected for dispatch (priority, status, retry limits)?"
+      - id: agent_matching
+        type: text
+        prompt: "How are agents matched to tasks (capabilities, availability, type)?"
+      - id: concurrency_limits
+        type: map
+        prompt: "Key concurrency and rate limits (scan interval, max concurrent agents, dispatch attempts)"
+      - id: failure_handling
+        type: list
+        prompt: "How does the dispatch cycle handle failures at each step?"
+
+  - id: agent_lifecycle
+    name: "Agent Lifecycle"
+    prompt: >
+      Map the complete agent lifecycle from registration to completion.
+      What states can an agent be in? What transitions are valid?
+      How does the system detect and handle invalid states (zombies)?
+
+      Cover: agent types (main vs sub), status transitions (idle, working,
+      stuck, auto-recovered), task assignment and release, session binding.
+
+      Key constants:
+      - States: idle, working; stuck = working + silent > 15min; zombie = working + no currentTaskId
+      - stuckThresholdMs: 900,000 (15min silence triggers stuck detection)
+      - maxStuckDurationMs: 3,600,000 (60min auto-recovery: unassign task, reset to idle)
+      - maxNudgeAttempts: 3 (nudge budget per agent per dispatch cycle)
+      - Stage stakes: planning(20), design(30), engineering(40), review(50), qa(60), production(95)
+      - Priority modifiers: low(-10), medium(0), high(+10), urgent(+20)
+      - Autonomy thresholds: autonomous >= 70, supervised >= 40, stakesBlocker >= 90, clarityBlocker <= 20
+      - Composite weights: invertedStakes(0.25), clarity(0.30), confidence(0.30), precedent(0.15)
+      - Zombie detection: working agents with null currentTaskId and type != 'main' reset to idle
+    depends_on: dispatch_cycle
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: agent_types
+        type: list
+        prompt: "List agent types and their roles (main orchestrator, sub-agents, etc.)"
+      - id: status_transitions
+        type: map
+        prompt: "Map valid status transitions (e.g., idle -> working, working -> stuck)"
+      - id: zombie_detection
+        type: text
+        prompt: "How are zombie agents (invalid state) detected and recovered?"
+      - id: stuck_detection
+        type: map
+        prompt: "Stuck detection thresholds, nudge budget, and auto-recovery timing"
+      - id: registration_flow
+        type: list
+        prompt: "Steps for registering a new agent and binding it to a session"
+
+  - id: session_management
+    name: "Session Management"
+    prompt: >
+      Describe how agent sessions are created, managed, and terminated.
+      What is the relationship between the agent runtime (OpenClaw), the
+      session store, and the application database? How are sessions killed
+      when agents need to be stopped?
+
+      Cover: session spawn, session store format, session-to-agent binding,
+      session deletion (filesystem vs API), transcript archiving.
+
+      Key constants:
+      - Spawn circuit breaker (openclaw-spawn): 3 failures, 2min reset, 30s timeout
+      - Spawn retry policy: 2 attempts, 5s base delay, 15s max delay
+      - Session store path: $OPENCLAW_DATA_DIR/agents/<agentId>/sessions/sessions.json
+      - Transcripts: <agentId>/sessions/<sessionId>.jsonl
+      - Archived transcripts: <sessionId>.jsonl.deleted.<ISO-timestamp>
+      - DB tables: sessionMappings(sessionKey, taskId), agents(sessionKey, agentId, type)
+      - Context assembly layers: stage prompt -> strategy -> precedents -> RAG -> sift -> protocol
+      - Default runTimeoutSeconds: 300 (5min agent execution timeout)
+    depends_on: agent_lifecycle
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: session_architecture
+        type: text
+        prompt: "How sessions are stored and managed (gateway, filesystem, database)"
+      - id: spawn_flow
+        type: list
+        prompt: "Steps to spawn a new agent session"
+      - id: termination_flow
+        type: list
+        prompt: "Steps to safely terminate a session (delete from store, archive transcript)"
+      - id: session_store_format
+        type: text
+        prompt: "Structure of the session store (sessions.json format, transcript files)"
+      - id: pitfalls
+        type: list
+        prompt: "Known pitfalls (e.g., gateway recreates sessions on send, termination messages cause loops)"
+
+  - id: communication_protocol
+    name: "Communication Protocol"
+    prompt: >
+      Document the messaging rules for agent-to-agent and agent-to-human
+      communication. What tools are used for each? What are the reply-back
+      loop mechanics? How do agents break out of communication loops?
+
+      Cover: sessions_send vs message tool, reply-back ping-pong (maxPingPongTurns),
+      REPLY_SKIP, ANNOUNCE_SKIP, fire-and-forget nudges, channel routing.
+
+      Key constants:
+      - sessions_send: agent-to-agent via /tools/invoke (OpenClaw gateway)
+      - message tool: agent-to-human via channels (WhatsApp, Discord, etc.)
+      - Nudge sends use timeoutSeconds: 0 (fire-and-forget, prevents reply-back loop)
+      - Nudge budget: maxNudgeAttempts = 3 before waiting for auto-recovery
+      - REPLY_SKIP: agent signal to break ping-pong loop immediately
+      - ANNOUNCE_SKIP: suppress channel posting after loop completion
+      - Always update lastActivity after nudge to prevent nudge storm (every 30s)
+      - Routing: stuck alerts go to ops channel via notificationService, NOT back to orchestrator
+      - Send circuit breaker (openclaw-send): 5 failures, 1min reset, 60s timeout
+    depends_on: session_management
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: messaging_tools
+        type: map
+        prompt: "Map each messaging tool to its purpose (sessions_send -> agents, message -> humans)"
+      - id: reply_loop_mechanics
+        type: text
+        prompt: "How the reply-back ping-pong loop works (rounds, timeouts, skip signals)"
+      - id: loop_breaking
+        type: list
+        prompt: "All methods to break communication loops (REPLY_SKIP, ANNOUNCE_SKIP, timeoutSeconds: 0)"
+      - id: routing_rules
+        type: list
+        prompt: "Rules for routing notifications (stuck alerts to ops, not back to orchestrator)"
+      - id: anti_patterns
+        type: list
+        prompt: "Dangerous anti-patterns (sending to wrong tool, nudge-triggered loops, alert cascades)"
+
+  - id: failure_recovery
+    name: "Failure Modes & Recovery"
+    prompt: >
+      Document the known failure modes and their recovery mechanisms.
+      What cascade failures can occur? How does the system prevent them?
+      What manual interventions are available?
+
+      Cover: nudge storms, communication cascades, zombie agents, orphaned
+      tasks, circuit breakers, nudge budgets, auto-recovery, force-stop.
+
+      Circuit breakers (name: failures/reset/timeout):
+      - openclaw-llm: 3 / 2min / 60s
+      - openclaw-spawn: 3 / 2min / 30s
+      - openclaw-send: 5 / 1min / 60s
+      - github-api: 5 / 5min / 10s
+      - discord-webhook: 5 / 5min / 5s
+      - openclaw-ws: 3 / 1min / 10s
+
+      Retry policies (name: attempts/base/max):
+      - Database: 3 / 500ms / 5s
+      - LLM: 2 / 2s / 10s
+      - Agent Spawn: 2 / 5s / 15s
+      - GitHub: 3 / 1s / 10s
+      - Discord: 2 / 1s / 5s
+
+      Multi-approach confidence:
+      - MIN_CONFIDENCE_GAP: 25 (best vs second-best approach)
+      - MIN_OVERALL_CONFIDENCE: 60
+      - MIN_BEST_APPROACH_CONFIDENCE: 40
+    depends_on: communication_protocol
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: failure_modes
+        type: list
+        prompt: "List each known failure mode with trigger conditions"
+      - id: prevention_mechanisms
+        type: map
+        prompt: "Map each failure mode to its prevention mechanism (budgets, circuit breakers, etc.)"
+      - id: recovery_procedures
+        type: list
+        prompt: "Step-by-step recovery procedures for each failure mode"
+      - id: manual_interventions
+        type: list
+        prompt: "Available manual interventions (forceStop API, DB resets, etc.)"
+      - id: monitoring_signals
+        type: list
+        prompt: "Audit events and signals that indicate each failure mode"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

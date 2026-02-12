@@ -1,0 +1,127 @@
+name: "Pipeline Stages"
+description: >
+  Captures the complete pipeline stage execution model for chip-command.
+  Covers the StageExecutor interface, all 7 stages, transition logic,
+  pre/post execution hooks, and verification patterns.
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - pipeline
+    - stages
+    - executor
+    - workflow
+  license: MIT
+
+phases:
+  - id: executor_interface
+    name: "StageExecutor Interface"
+    prompt: >
+      Document the StageExecutor interface that all pipeline stages implement.
+      What methods must each executor provide? How does the router use them?
+
+      Cover: getNextStage(), preExecute(), getPrompt(), verify() methods.
+      Include the PipelineStage type and outcome types.
+
+      Key constants:
+      - Pipeline stages: research, planning, design, engineering, review, qa, production
+      - Outcomes: 'success' | 'failed'
+      - Next step returns: PipelineStage | 'complete' | 'block'
+      - Router flow: load task → get executor → if success: verify → getNextStage → transition
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: interface_methods
+        type: list
+        prompt: "Each method in StageExecutor with signature, purpose, and return type"
+      - id: pipeline_stages
+        type: list
+        prompt: "All pipeline stage names in order"
+      - id: outcome_types
+        type: map
+        prompt: "All possible outcomes and next-step return values"
+      - id: router_flow
+        type: list
+        prompt: "Steps the router takes to advance a task between stages"
+
+  - id: stage_implementations
+    name: "Stage Implementations"
+    prompt: >
+      Document each of the 7 stage executor implementations.
+      What does each stage do? What prompt does it give the agent?
+      How does it handle success and failure transitions?
+
+      Cover all stages:
+      - research: analyze requirements, search codebase, identify risks
+      - planning: break down task, define approach, identify files
+      - design: architecture, UI/UX, patterns
+      - engineering: implement in code (with file snapshots for rollback)
+      - review: check implementation, bugs, security, performance
+      - qa: create/run tests, edge cases, regressions
+      - production: deploy, verify health, monitor, release notes
+
+      Key patterns:
+      - engineering.preExecute() takes file snapshots for rollback
+      - production.preExecute() snapshots all project files
+      - Failure transitions: research→block, planning→block, design→planning,
+        engineering→design, review→engineering, qa→engineering, production→block
+    depends_on: executor_interface
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: stage_details
+        type: list
+        prompt: "Each stage with: name, prompt focus, success transition, failure transition"
+      - id: pre_execute_hooks
+        type: list
+        prompt: "Stages with preExecute hooks and what they do"
+      - id: failure_transitions
+        type: map
+        prompt: "Map each stage's failure to where it transitions (e.g., engineering → design)"
+      - id: sift_integrations
+        type: list
+        prompt: "Stages that integrate with sift templates and which templates"
+
+  - id: verification_rollback
+    name: "Verification & Rollback"
+    prompt: >
+      Document the verification and rollback mechanisms in the pipeline.
+      How does verify() work? When is rollback triggered?
+      How do file snapshots enable safe rollback?
+
+      Cover: verification flow, snapshot mechanism, rollback handler,
+      the relationship between verify failure and stage transitions.
+
+      Key patterns:
+      - verify() runs after agent reports success
+      - If verify fails: outcome changed to 'failed', rerouted
+      - Rollback: reverse-chronological file revert from snapshots
+      - Snapshots stored in artifacts table with contentBefore
+      - Rollback is non-blocking (per-file errors caught)
+    depends_on: stage_implementations
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: verification_flow
+        type: list
+        prompt: "Steps in the verification process after agent success"
+      - id: rollback_mechanism
+        type: text
+        prompt: "How file-level rollback works (snapshots, reverse order, error handling)"
+      - id: snapshot_format
+        type: text
+        prompt: "What's stored in a snapshot (table, fields, when captured)"
+      - id: rollback_triggers
+        type: list
+        prompt: "All conditions that trigger rollback"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

@@ -1,0 +1,174 @@
+name: "Autonomy Engine"
+description: >
+  Captures the complete autonomy assessment and earned trust system.
+  Covers the 4-axis scoring model, multi-approach strategy generation,
+  risk assessment, evolution/learning, and strategy selection patterns.
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - autonomy
+    - trust
+    - scoring
+    - strategy
+  license: MIT
+
+phases:
+  - id: four_axis_scoring
+    name: "4-Axis Scoring Model"
+    prompt: >
+      Document the four axes used to assess task autonomy level.
+      How is each axis scored? What inputs feed each score?
+      How are the axes combined into a composite score?
+
+      Cover: stakes, clarity, confidence, precedent — each with formula
+      and input sources.
+
+      Key constants:
+      - Stakes base by stage: planning(20), design(30), engineering(40), review(50), qa(60), production(95)
+      - Priority modifiers: low(-10), medium(0), high(+10), urgent(+20)
+      - Stakes = 60% stage/priority + 40% structural risk
+      - Clarity base: 30, +30 for >500 chars, +15 for >100 chars, -20 for <20 chars
+      - Confidence from multi-approach: MIN_CONFIDENCE_GAP=25, MIN_OVERALL_CONFIDENCE=60
+      - Precedent: cosine similarity search, MINIMUM_SIMILARITY=0.6, MAX_PRECEDENTS=10
+      - Composite weights: invertedStakes(0.25), clarity(0.30), confidence(0.30), precedent(0.15)
+      - Thresholds: autonomous >= 70, supervised >= 40, stakesBlocker >= 90, clarityBlocker <= 20
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: axis_formulas
+        type: map
+        prompt: "Formula and inputs for each axis (stakes, clarity, confidence, precedent)"
+      - id: composite_formula
+        type: text
+        prompt: "How the 4 axes combine into a composite score with weights"
+      - id: thresholds
+        type: map
+        prompt: "All autonomy level thresholds (autonomous, supervised, blocked, hard blockers)"
+      - id: stage_stakes_table
+        type: map
+        prompt: "Stage-to-stakes mapping and priority modifiers"
+      - id: clarity_scoring
+        type: list
+        prompt: "All clarity scoring rules with point values"
+
+  - id: multi_approach
+    name: "Multi-Approach Strategy"
+    prompt: >
+      Document the multi-approach strategy generation and selection system.
+      How does the LLM generate candidate approaches? How are they ranked?
+      When is human input required?
+
+      Cover: approach generation, strategy evaluation, confidence gap,
+      human-input triggers, approach schema.
+
+      Key constants:
+      - MAX_APPROACHES: 5
+      - MIN_CONFIDENCE_GAP: 25 (gap between best and second-best)
+      - MIN_OVERALL_CONFIDENCE: 60
+      - MIN_BEST_APPROACH_CONFIDENCE: 40
+      - Strategy evaluator penalties: high stakes + high risk = -30; urgent + small effort = +15
+      - Human input required when: best < 40, gap < 25, overall < 60, or best is "high risk"
+    depends_on: four_axis_scoring
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: generation_flow
+        type: list
+        prompt: "Steps for generating candidate approaches via LLM"
+      - id: ranking_algorithm
+        type: text
+        prompt: "How approaches are ranked (evaluator penalties/bonuses, gap analysis)"
+      - id: human_input_triggers
+        type: list
+        prompt: "All conditions that require human input before proceeding"
+      - id: approach_schema
+        type: map
+        prompt: "Fields in each approach object (title, steps, confidence, tradeoffs, etc.)"
+      - id: confidence_thresholds
+        type: map
+        prompt: "All confidence-related thresholds with values"
+
+  - id: risk_assessment
+    name: "Risk Assessment"
+    prompt: >
+      Document the three-dimensional risk assessment system.
+      How are blast radius, rollback complexity, and test coverage scored?
+      How does risk feed into the stakes axis?
+
+      Cover: each dimension's formula and keywords, composite risk calculation,
+      integration with stakes scoring.
+
+      Key constants:
+      - Blast radius keywords: "global" +20, "auth/login" +25, "database" +15, "migration" +30, "billing" +40, "security" +30
+      - Rollback keywords: "delete" +30, "drop/purge" +40, "permanent" +50, "destructive" +40
+      - Test keywords: "untested" -30, "experimental" -20, "legacy" -15, "verified" +20
+      - Composite risk: blast(40%) + rollback(40%) + (100-testCoverage)(20%)
+      - Integration: stakes = baseStakes(60%) + compositeRisk(40%)
+    depends_on: four_axis_scoring
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: blast_radius
+        type: map
+        prompt: "Blast radius scoring: base by stage, keyword modifiers"
+      - id: rollback_complexity
+        type: map
+        prompt: "Rollback complexity scoring: base, keyword modifiers"
+      - id: test_coverage
+        type: map
+        prompt: "Test coverage scoring: base, keyword modifiers"
+      - id: composite_formula
+        type: text
+        prompt: "Composite risk formula and how it feeds into stakes"
+      - id: strategy_types
+        type: list
+        prompt: "Strategy selection types (MIGRATION, SAFETY_OPTIMIZED, etc.) with trigger conditions"
+
+  - id: evolution_learning
+    name: "Evolution & Learning"
+    prompt: >
+      Document the earned trust flywheel — how the system learns from outcomes.
+      How are thresholds adjusted over time? What is the experiment group system?
+
+      Cover: evolution cycle, threshold adjustments, experiment groups,
+      minimum data requirements.
+
+      Key constants:
+      - Lookback window: 7 days
+      - Min data points: 10 before evolution
+      - High failure rate: > 15% → autonomousMin += 2, stakesBlocker -= 2
+      - High success rate: > 90% + volume > 50 → autonomousMin -= 1
+      - High override rate: > 20% → stakesBlocker -= 5
+      - Experiment groups: "control" vs "experimental" (deterministic taskId hash split)
+    depends_on: risk_assessment
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: evolution_cycle
+        type: list
+        prompt: "Steps in each evolution cycle (when it runs, what it analyzes)"
+      - id: threshold_adjustments
+        type: map
+        prompt: "All threshold adjustment rules with trigger conditions and amounts"
+      - id: experiment_groups
+        type: text
+        prompt: "How experiment groups work (control vs experimental, version naming)"
+      - id: minimum_requirements
+        type: map
+        prompt: "Minimum data requirements before evolution engages"
+      - id: precedent_logging
+        type: text
+        prompt: "How outcomes are logged to precedent_log for future learning"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

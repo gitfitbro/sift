@@ -1,0 +1,162 @@
+name: "Event Bus & SSE"
+description: >
+  Captures the event-driven architecture for chip-command. Covers the
+  in-process event bus, SSE transport, OpenClaw WebSocket bridge,
+  client-side hooks, and real-time sync patterns.
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - events
+    - sse
+    - websocket
+    - real-time
+  license: MIT
+
+phases:
+  - id: event_bus
+    name: "Event Bus Architecture"
+    prompt: >
+      Document the in-process event bus system. What events exist?
+      How are events emitted and consumed? What is the wildcard pattern?
+
+      Cover: EventEmitter singleton, event types and data shapes,
+      emit/on/off API, wildcard envelope format.
+
+      Key constants:
+      - Max listeners: 50
+      - 11 event types: task.created/updated/completed/blocked/stage_changed,
+        agent.spawned/stuck/completed, dispatch.cycle_completed,
+        notification.sent, audit.event
+      - Wildcard '*' for SSE subscribers
+      - Envelope: { type, data, timestamp }
+      - Singleton pattern (single-instance, no Redis needed)
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: event_catalog
+        type: list
+        prompt: "All event types with their data shape fields"
+      - id: bus_architecture
+        type: text
+        prompt: "How the event bus is implemented (EventEmitter, singleton, wildcard)"
+      - id: envelope_format
+        type: map
+        prompt: "Event envelope structure (type, data, timestamp)"
+      - id: emit_patterns
+        type: list
+        prompt: "Where each event type is emitted from (which service/method)"
+
+  - id: sse_transport
+    name: "SSE Transport"
+    prompt: >
+      Document the Server-Sent Events transport layer. How do clients
+      subscribe? How is filtering done? What keeps connections alive?
+
+      Cover: GET /api/events endpoint, event filtering by type,
+      heartbeat mechanism, cleanup on disconnect.
+
+      Key constants:
+      - Endpoint: GET /api/events?types=task.created,task.updated
+      - Heartbeat: 15 seconds (`: keepalive\n\n`)
+      - Headers: text/event-stream, no-cache, keep-alive, X-Accel-Buffering: no
+      - ReadableStream with TextEncoder
+      - Cleanup: unsubscribe on abort signal
+    depends_on: event_bus
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: endpoint_spec
+        type: map
+        prompt: "SSE endpoint URL, method, query params, headers"
+      - id: streaming_flow
+        type: list
+        prompt: "Steps for establishing and maintaining an SSE connection"
+      - id: heartbeat_config
+        type: map
+        prompt: "Heartbeat interval, format, and purpose"
+      - id: filtering_mechanism
+        type: text
+        prompt: "How event type filtering works (query param to subscription)"
+
+  - id: openclaw_bridge
+    name: "OpenClaw WebSocket Bridge"
+    prompt: >
+      Document the WebSocket bridge that translates OpenClaw gateway events
+      into the chip-command event bus. How does the connection work?
+      What events are translated?
+
+      Cover: WebSocket connection/handshake, protocol version, reconnection
+      strategy, event translation (agent/chat/health), agent activity tracking.
+
+      Key constants:
+      - WebSocket URL: derived from OPENCLAW_GATEWAY_URL (http→ws)
+      - Protocol: v3 (minProtocol: 3, maxProtocol: 3)
+      - Role: "operator"
+      - Reconnect start: 5,000ms (5s)
+      - Reconnect max: 300,000ms (5min)
+      - Backoff: delay × 2^(failureCount-1)
+      - Log throttle: every 5 failures
+      - Events translated: 'agent' → task.updated, 'chat' → audit.event
+    depends_on: sse_transport
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: connection_flow
+        type: list
+        prompt: "Steps for WebSocket connection and handshake"
+      - id: reconnection_strategy
+        type: map
+        prompt: "Reconnection delays, backoff formula, max delay"
+      - id: event_translation
+        type: map
+        prompt: "Map OpenClaw event types to chip-command event types"
+      - id: agent_activity_tracking
+        type: text
+        prompt: "How bridge events update agent lastActivity and stuckSince"
+
+  - id: client_hooks
+    name: "Client-Side Hooks"
+    prompt: >
+      Document the client-side React hooks for consuming real-time events.
+      How does useEventStream work? How does useRealtimeSync maintain state?
+
+      Cover: EventSource connection, SWR cache invalidation mapping,
+      reconnection backoff, real-time sync (session→agent→task linking),
+      fallback polling.
+
+      Key constants:
+      - EVENT_TO_SWR_KEYS mapping (11 event types → API endpoints)
+      - Reconnect backoff: 1s, 2s, 4s, 8s, max 30s (exponential)
+      - SSE status: connected | reconnecting | disconnected
+      - Fallback polling: 30s (SWR refreshInterval)
+      - Session sync interval: 30s
+      - Active session threshold: 5 minutes
+    depends_on: openclaw_bridge
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: event_swr_mapping
+        type: map
+        prompt: "Complete EVENT_TO_SWR_KEYS mapping (event type → cache keys to invalidate)"
+      - id: connection_management
+        type: text
+        prompt: "How EventSource connects, reconnects, and tracks status"
+      - id: realtime_sync_flow
+        type: list
+        prompt: "Steps in useRealtimeSync (session discovery, agent registration, task linking)"
+      - id: fallback_patterns
+        type: map
+        prompt: "Fallback mechanisms when SSE is disconnected (polling intervals, safety nets)"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary

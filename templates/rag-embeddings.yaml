@@ -1,0 +1,150 @@
+name: "RAG & Embeddings"
+description: >
+  Captures the retrieval-augmented generation and embedding system for
+  chip-command. Covers code indexing, vector search, precedent matching,
+  and context assembly integration.
+
+metadata:
+  author: sirrele
+  version: "1.0"
+  tags:
+    - chip-command
+    - rag
+    - embeddings
+    - vector-search
+    - pgvector
+  license: MIT
+
+phases:
+  - id: embedding_service
+    name: "Embedding Service"
+    prompt: >
+      Document the embedding service — how text is converted to vectors
+      for semantic search.
+
+      Cover: model selection, dimensionality, pooling strategy,
+      lazy loading pattern, batch processing.
+
+      Key constants:
+      - Model: Xenova/all-MiniLM-L6-v2
+      - Dimensions: 384
+      - Pooling: mean
+      - Normalize: true
+      - Processing: sequential (to manage memory)
+      - Singleton lazy-loaded on first call
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: model_config
+        type: map
+        prompt: "Embedding model name, dimensions, pooling, normalization settings"
+      - id: loading_pattern
+        type: text
+        prompt: "How the model is loaded (lazy singleton, first-call initialization)"
+      - id: api_methods
+        type: list
+        prompt: "Public methods with signatures (generateEmbedding, generateEmbeddings)"
+
+  - id: code_indexing
+    name: "Code Indexing"
+    prompt: >
+      Document how code is indexed for RAG search. What files are included?
+      How is code chunked? How are chunks stored?
+
+      Cover: glob patterns, ignored directories, chunking strategy,
+      batch insertion, storage schema.
+
+      Key constants:
+      - File patterns: **/*.{ts,tsx,js,jsx,md,txt}
+      - Ignored: node_modules, .next, .git, dist, build, *.log, lock files
+      - Chunk size: 2000 characters
+      - Chunk overlap: 200 characters
+      - Batch size: 20 chunks per insert
+      - Storage: codeSnippets table with pgvector column
+    depends_on: embedding_service
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: indexing_flow
+        type: list
+        prompt: "Steps for indexing a project (glob, chunk, embed, store)"
+      - id: chunking_config
+        type: map
+        prompt: "Chunk size, overlap, and why these values were chosen"
+      - id: ignored_patterns
+        type: list
+        prompt: "All ignored file/directory patterns"
+      - id: storage_schema
+        type: text
+        prompt: "Database schema for code snippets (table, columns, vector type)"
+
+  - id: search_retrieval
+    name: "Search & Retrieval"
+    prompt: >
+      Document the semantic search and retrieval system. How are queries
+      matched to code snippets? How are results ranked?
+
+      Cover: query embedding, cosine distance, similarity threshold,
+      result ranking, integration with context assembly.
+
+      Key constants:
+      - Default search limit: 5
+      - Min similarity: 0.5
+      - Distance function: cosine distance (pgvector <=> operator)
+      - Similarity = 1 - cosineDistance
+      - Context assembler uses limit: 3 for RAG results
+    depends_on: code_indexing
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: search_flow
+        type: list
+        prompt: "Steps for searching (embed query, compute distance, filter, rank)"
+      - id: search_config
+        type: map
+        prompt: "Search parameters (limit, minSimilarity, distance function)"
+      - id: context_integration
+        type: text
+        prompt: "How search results are injected into agent context assembly"
+
+  - id: precedent_matching
+    name: "Precedent Matching"
+    prompt: >
+      Document the precedent matching system — how past task outcomes
+      are used to inform autonomy and context.
+
+      Cover: task pattern extraction, vector similarity search, precedent
+      logging, pattern fields, integration with autonomy scoring.
+
+      Key constants:
+      - MINIMUM_SIMILARITY: 0.6
+      - MAX_PRECEDENTS: 10
+      - Context assembler uses maxResults: 3
+      - Pattern fields: stage, priority, labels, titleKeywords, descriptionLength, hasAssignee
+      - Description buckets: short (<100), medium (100-500), long (>500)
+    depends_on: search_retrieval
+    capture:
+      - type: text
+        required: true
+    extract:
+      - id: pattern_extraction
+        type: map
+        prompt: "TaskPattern fields and how each is computed from a task"
+      - id: similarity_search
+        type: text
+        prompt: "How precedent matching uses vector search (embedding, distance, threshold)"
+      - id: precedent_logging
+        type: text
+        prompt: "What's logged in precedent_log table and when"
+      - id: autonomy_integration
+        type: text
+        prompt: "How precedent score feeds into the 4-axis autonomy model"
+
+outputs:
+  - type: yaml
+    template: session-config
+  - type: markdown
+    template: session-summary
